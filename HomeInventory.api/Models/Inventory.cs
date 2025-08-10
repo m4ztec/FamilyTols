@@ -5,7 +5,7 @@ namespace HomeInventory.api.Models;
 public class Inventory
 {
     [Key]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; init; } = Guid.NewGuid();
     public string? Name { get; set; }
     public string? Description { get; set; }
 

@@ -1,7 +1,7 @@
 ﻿using HomeInventory.api.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace HomeInventory.api.Data
+namespace HomeInventory.api.dbContext
 {
     public class HomeInventoryapiContext(DbContextOptions<HomeInventoryapiContext> options) : DbContext(options)
     {

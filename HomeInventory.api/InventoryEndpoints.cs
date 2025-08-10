@@ -1,6 +1,7 @@
-﻿using HomeInventory.api.Data;
+﻿using HomeInventory.api.dbContext;
 using HomeInventory.api.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomeInventory.api;
@@ -10,13 +11,6 @@ public static class InventoryEndpoints
     public static void MapInventoryEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/api/Inventory").WithTags(nameof(Inventory));
-
-        group.MapGet("/", async (HomeInventoryapiContext db) =>
-        {
-            return await db.Inventory.ToListAsync();
-        })
-        .WithName("GetAllInventories")
-        .WithOpenApi();
 
         group.MapGet("/{id}", async Task<Results<Ok<Inventory>, NotFound>> (Guid id, HomeInventoryapiContext db) =>
         {
@@ -29,10 +23,9 @@ public static class InventoryEndpoints
         .WithName("GetInventoryById")
         .WithOpenApi();
 
-        group.MapPut("/{id}", async Task<Results<Ok, NotFound>> (Guid id, Inventory inventory, HomeInventoryapiContext db) =>
+        group.MapPut("/", async Task<Results<Ok, NotFound>> (Inventory inventory, HomeInventoryapiContext db) =>
         {
             var affected = await db.Inventory
-                .Where(model => model.Id == id)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(m => m.Id, inventory.Id)
                     .SetProperty(m => m.Name, inventory.Name)
@@ -68,35 +61,18 @@ public static class InventoryEndpoints
     {
         var group = routes.MapGroup("/api/InventoryMembers").WithTags(nameof(InventoryMembers));
 
-        group.MapGet("/", async (HomeInventoryapiContext db) =>
+        group.MapGet("/users/{userid}", async (string userid, HomeInventoryapiContext db) =>
         {
-            return await db.InventoryMembers.ToListAsync();
+            return await db.InventoryMembers.Where(model => model.UserId == userid).ToListAsync();
         })
-        .WithName("GetAllInventoryMembers")
+        .WithName("GetUserInventories")
         .WithOpenApi();
 
-        group.MapGet("/{id}", async Task<Results<Ok<InventoryMembers>, NotFound>> (string userid, HomeInventoryapiContext db) =>
+        group.MapGet("/inventory/{InventoryId}", async (Guid InventoryId, HomeInventoryapiContext db) =>
         {
-            return await db.InventoryMembers.AsNoTracking()
-                .FirstOrDefaultAsync(model => model.UserId == userid)
-                is InventoryMembers model
-                    ? TypedResults.Ok(model)
-                    : TypedResults.NotFound();
+            return await db.InventoryMembers.Where(model => model.InventoryId == InventoryId).ToListAsync();
         })
-        .WithName("GetInventoryMembersById")
-        .WithOpenApi();
-
-        group.MapPut("/{id}", async Task<Results<Ok, NotFound>> (string userid, InventoryMembers inventoryMembers, HomeInventoryapiContext db) =>
-        {
-            var affected = await db.InventoryMembers
-                .Where(model => model.UserId == userid)
-                .ExecuteUpdateAsync(setters => setters
-                  .SetProperty(m => m.InventoryId, inventoryMembers.InventoryId)
-                  .SetProperty(m => m.UserId, inventoryMembers.UserId)
-                  );
-            return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
-        })
-        .WithName("UpdateInventoryMembers")
+        .WithName("GetInventoryUsers")
         .WithOpenApi();
 
         group.MapPost("/", async (InventoryMembers inventoryMembers, HomeInventoryapiContext db) =>
@@ -108,10 +84,10 @@ public static class InventoryEndpoints
         .WithName("CreateInventoryMembers")
         .WithOpenApi();
 
-        group.MapDelete("/{id}", async Task<Results<Ok, NotFound>> (string userid, HomeInventoryapiContext db) =>
+        group.MapDelete("/", async Task<Results<Ok, NotFound>> ([FromBody] InventoryMembers inventoryMembers, HomeInventoryapiContext db) =>
         {
             var affected = await db.InventoryMembers
-                .Where(model => model.UserId == userid)
+                .Where(model => model.UserId == inventoryMembers.UserId)
                 .ExecuteDeleteAsync();
             return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
         })

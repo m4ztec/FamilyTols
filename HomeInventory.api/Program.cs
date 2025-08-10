@@ -1,5 +1,5 @@
 ﻿using HomeInventory.api;
-using HomeInventory.api.Data;
+using HomeInventory.api.dbContext;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
