@@ -1,0 +1,6 @@
+@HomeInventory.api_HostAddress = http://localhost:5196
+
+GET {{HomeInventory.api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
