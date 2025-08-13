@@ -23,6 +23,8 @@ builder.Services.AddDbContext<HomeInventoryapiContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("HomeInventoryapiContext")
         ?? throw new InvalidOperationException("Connection string 'HomeInventoryapiContext' not found.")));
 
+builder.Services.AddCors();
+
 builder.Services.AddOpenApi();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -55,6 +57,12 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+app.UseCors(x => x
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .SetIsOriginAllowed(origin => true) // allow any origin
+                .AllowCredentials()); // allow credentials
 
 app.MapOpenApi();
 

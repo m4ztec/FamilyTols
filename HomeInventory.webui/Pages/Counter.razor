@@ -1,4 +1,6 @@
 ﻿@page "/counter"
+@inject HttpClient http
+@attribute [Authorize]
 
 <PageTitle>Counter</PageTitle>
 
@@ -8,7 +10,21 @@
 
 <button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
 
+<h3>testauthapi</h3>
+
+<button class="button" @onclick="getinfo">  "Button" </button>
+
+<h1>@hi</h1>
+
 @code {
+
+    string hi = "";
+
+    async Task getinfo()
+    {
+        hi = await http.GetStringAsync("http://localhost:5196/hi");
+    }
+
     private int currentCount = 0;
 
     private void IncrementCount()
