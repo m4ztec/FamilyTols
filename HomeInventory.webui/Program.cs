@@ -25,6 +25,8 @@ builder.Services.AddOidcAuthentication(options =>
     // For more information, see https://aka.ms/blazor-standalone-auth
     builder.Configuration.Bind("Auth0", options.ProviderOptions);
     options.ProviderOptions.ResponseType = "code";
+    options.ProviderOptions.AdditionalProviderParameters.Add("Audience", "https://dev-iaan6kbpwcjhk4me.us.auth0.com/api/v2/");
+    options.ProviderOptions.AdditionalProviderParameters.Add("scopes", "read:current_user update:current_user_metadata");
 });
 
 builder.Services.AddAuthorizationCore();
