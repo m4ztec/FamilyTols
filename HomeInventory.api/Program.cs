@@ -1,10 +1,9 @@
-﻿using System.Net.Http.Headers;
-using HomeInventory.api;
+﻿using HomeInventory.api;
 using HomeInventory.api.dbContext;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.OpenApi.Models;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,8 +13,15 @@ builder.Services.AddAuthentication(options =>
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(options =>
 {
-    options.Authority = "https://dev-iaan6kbpwcjhk4me.us.auth0.com/";
-    options.Audience = "https://dev-iaan6kbpwcjhk4me.us.auth0.com/api/v2/";
+    options.Authority = "https://auth.m4ztec.com/realms/BlazorTest1";
+    options.Audience = "web-api";
+    options.TokenValidationParameters = new()
+    {
+       ValidateAudience = true,
+       ValidateIssuer = true,
+       ValidateLifetime = true,
+       ValidateIssuerSigningKey = true,
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -59,6 +65,7 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+app.UseHttpsRedirection();
 app.UseCors(x => x
                 .AllowAnyMethod()
                 .AllowAnyHeader()
@@ -73,8 +80,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -88,32 +93,6 @@ app.MapGet("/hi", () =>
     return TypedResults.Ok("authorized BABY!!!");
 })
 .WithName("test_01")
-.WithOpenApi()
-.RequireAuthorization();
-
-app.MapGet("/hi2", async () =>
-{
-    using var client = new HttpClient();
-        
-    var url = "https://dev-iaan6kbpwcjhk4me.us.auth0.com/oauth/token";
-
-    var requestData = new[]
-    {
-        new KeyValuePair<string, string>("grant_type", "client_credentials"),
-        new KeyValuePair<string, string>("client_id", "N2cL2ZcijNPbkAiFgP2KCNJdAe4TM68p"),
-        new KeyValuePair<string, string>("client_secret", "ZRBAYE5C3UdkOgUznlQ_g9zY9CatJcILgKLDjXUi-M0lvpdgbWf4q3BG1ObKKEkz"),
-        new KeyValuePair<string, string>("audience", "https://dev-iaan6kbpwcjhk4me.us.auth0.com/api/v2/")
-    };
-
-    var requestContent = new FormUrlEncodedContent(requestData);
-    requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
-
-    var response = await client.PostAsync(url, requestContent);
-    var responseString = await response.Content.ReadAsStringAsync();
-
-    return TypedResults.Ok(responseString);
-})
-.WithName("test_02")
 .WithOpenApi()
 .RequireAuthorization();
 

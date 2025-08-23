@@ -22,7 +22,7 @@
 
     async Task getinfo()
     {
-        hi = await http.GetStringAsync("http://localhost:5196/hi");
+        hi = await http.GetStringAsync("/hi");
     }
 
     private int currentCount = 0;

@@ -1,9 +1,10 @@
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using HomeInventory.webui;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using static System.Net.WebRequestMethods;
 
-const string ApiUri = "http://localhost:5196";
+const string ApiUri = "https://localhost:7003";
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -21,16 +22,10 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 
 builder.Services.AddOidcAuthentication(options =>
 {
-    // Configure your authentication provider options here.
-    // For more information, see https://aka.ms/blazor-standalone-auth
-    builder.Configuration.Bind("Auth0", options.ProviderOptions);
+    options.ProviderOptions.Authority = "https://auth.m4ztec.com/realms/BlazorTest1";
+    options.ProviderOptions.ClientId = "blazor-client";
     options.ProviderOptions.ResponseType = "code";
-    options.ProviderOptions.AdditionalProviderParameters.Add("Audience", "https://dev-iaan6kbpwcjhk4me.us.auth0.com/api/v2/");
-    options.ProviderOptions.AdditionalProviderParameters.Add("scopes", "read:current_user update:current_user_metadata");
+    options.ProviderOptions.DefaultScopes.Add("blazor-api-scope");
 });
-
-builder.Services.AddAuthorizationCore();
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddAuthenticationStateDeserialization();
 
 await builder.Build().RunAsync();
