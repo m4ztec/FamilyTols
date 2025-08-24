@@ -2,7 +2,6 @@ using HomeInventory.webui;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using static System.Net.WebRequestMethods;
 
 const string ApiUri = "https://localhost:7003";
 

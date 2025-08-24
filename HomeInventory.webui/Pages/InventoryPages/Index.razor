@@ -1,0 +1,38 @@
+@page "/inventorys"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using HomeInventory.shared.Models
+@inject HttpClient http
+@attribute [Authorize]
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="inventorys/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="hi">
+    <PropertyColumn Property="inventory => inventory.Name" />
+    <PropertyColumn Property="inventory => inventory.Description" />
+    <PropertyColumn Property="inventory => inventory.Onwer" />
+    <PropertyColumn Property="inventory => inventory.CreatedAt" />
+    <PropertyColumn Property="inventory => inventory.LastModifiedAt" />
+
+    <TemplateColumn Context="inventory">
+        <a href="@($"inventorys/edit?id={inventory.Id}")">Edit</a> |
+        <a href="@($"inventorys/details?id={inventory.Id}")">Details</a> |
+        <a href="@($"inventorys/delete?id={inventory.Id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    IQueryable<Inventory>? hi;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userid = "get it from the identy";
+        var tmp = await http.GetFromJsonAsync<List<Inventory>>($"/api/InventoryMembers/users/{userid}");
+        hi = tmp?.AsQueryable();
+    }
+}

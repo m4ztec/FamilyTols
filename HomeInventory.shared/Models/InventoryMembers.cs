@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
-namespace HomeInventory.api.Models;
+namespace HomeInventory.shared.Models;
 
 [PrimaryKey("UserId","InventoryId")]
 public class InventoryMembers
@@ -11,4 +11,5 @@ public class InventoryMembers
 
     [Required]
     public required string UserId { get; set; }
+    public DateTimeOffset MemberSince { get; init; }
 }

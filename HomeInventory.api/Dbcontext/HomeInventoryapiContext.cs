@@ -1,4 +1,4 @@
-﻿using HomeInventory.api.Models;
+﻿using HomeInventory.shared.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomeInventory.api.dbContext

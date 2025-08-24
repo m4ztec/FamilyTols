@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace HomeInventory.api.Models;
+namespace HomeInventory.shared.Models;
 
 public class Product
 {

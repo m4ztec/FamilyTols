@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace HomeInventory.api.Models;
+namespace HomeInventory.shared.Models;
 
 public class Inventory
 {
@@ -11,4 +11,16 @@ public class Inventory
 
     [Required]
     public required string Onwer { get; set; }
+
+    [Required]
+    public DateTimeOffset CreatedAt
+    {
+        get;
+        init
+        {
+            field = DateTimeOffset.UtcNow;
+        }
+    }
+
+    public DateTimeOffset LastModifiedAt { get; set; }
 }

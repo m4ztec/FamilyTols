@@ -17,6 +17,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HomeInventory.webui", "HomeInventory.webui\HomeInventory.webui.csproj", "{00AE34B5-824F-405E-B39E-AF7F5EAC379A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HomeInventory.shared", "HomeInventory.shared\HomeInventory.shared.csproj", "{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,18 @@ Global
 		{00AE34B5-824F-405E-B39E-AF7F5EAC379A}.Release|x64.Build.0 = Release|Any CPU
 		{00AE34B5-824F-405E-B39E-AF7F5EAC379A}.Release|x86.ActiveCfg = Release|Any CPU
 		{00AE34B5-824F-405E-B39E-AF7F5EAC379A}.Release|x86.Build.0 = Release|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Debug|x64.Build.0 = Debug|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Debug|x86.Build.0 = Debug|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Release|x64.ActiveCfg = Release|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Release|x64.Build.0 = Release|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Release|x86.ActiveCfg = Release|Any CPU
+		{E37206D9-3B7C-4F38-9CD8-1114F3A1D463}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

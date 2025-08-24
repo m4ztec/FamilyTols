@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
-namespace HomeInventory.api.Models;
+namespace HomeInventory.shared.Models;
 
 [PrimaryKey(nameof(InventoryId),nameof(ProductName))]
 public class InventoryProducts
