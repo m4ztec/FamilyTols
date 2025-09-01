@@ -1,5 +1,6 @@
 @page "/inventorys"
 @using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @using HomeInventory.shared.Models
 @inject HttpClient http
 @attribute [Authorize]
@@ -7,6 +8,14 @@
 <PageTitle>Index</PageTitle>
 
 <h1>Index</h1>
+
+<h1>@hi2</h1>
+
+<AuthorizeView>
+    <Authorized>
+        Hello, @context.User.Claims.FirstOrDefault(a => a.Type == "sub")?.Value
+    </Authorized>
+</AuthorizeView>
 
 <p>
     <a href="inventorys/create">Create New</a>
@@ -27,12 +36,27 @@
 </QuickGrid>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationState { get; set; }
     IQueryable<Inventory>? hi;
+
+    string? hi2 = "";
+
+    //protected override async Task OnInitializedAsync()
+    //{
+        //var userid = "get it from the identy";
+        //var tmp = await http.GetFromJsonAsync<List<Inventory>>($"/api/InventoryMembers/users/{userid}");
+        //hi = tmp?.AsQueryable();
+    //}
+
 
     protected override async Task OnInitializedAsync()
     {
-        var userid = "get it from the identy";
-        var tmp = await http.GetFromJsonAsync<List<Inventory>>($"/api/InventoryMembers/users/{userid}");
-        hi = tmp?.AsQueryable();
+        if (authenticationState is not null)
+        {
+            var authState = await authenticationState;
+            var user = authState?.User;
+            hi2 = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value;
+        }
     }
 }
