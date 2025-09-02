@@ -40,6 +40,7 @@ public static class InventoryEndpoints
         group.MapPost("/", async (Inventory inventory, HomeInventoryapiContext db) =>
         {
             db.Inventory.Add(inventory);
+            db.InventoryMembers.Add(new (){UserId = inventory.Onwer, InventoryId = inventory.Id, MemberSince = DateTimeOffset.UtcNow});
             await db.SaveChangesAsync();
             return TypedResults.Created($"/api/Inventory/{inventory.Id}", inventory);
         })
@@ -55,6 +56,15 @@ public static class InventoryEndpoints
         })
         .WithName("DeleteInventory")
         .WithOpenApi();
+
+        group.MapPost("/bulk/get", async ([FromBody] Guid[] ids, HomeInventoryapiContext db) =>
+        {
+            if (ids.Length == 0) { return TypedResults.Ok(new List<Inventory>()); }
+            var tmp = await db.Inventory.Where(a => ids.Contains(a.Id)).ToListAsync();
+            return TypedResults.Ok(tmp ?? []);
+        })
+        .WithName("BulkGetInventory")
+        .WithOpenApi();
     }
 
     public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
@@ -63,14 +73,15 @@ public static class InventoryEndpoints
 
         group.MapGet("/users/{userid}", async (string userid, HomeInventoryapiContext db) =>
         {
-            return await db.InventoryMembers.Where(model => model.UserId == userid).ToListAsync();
+            var tmp = await db.InventoryMembers.Where(model => model.UserId == userid).ToListAsync();
+            return tmp ?? [];
         })
         .WithName("GetUserInventories")
         .WithOpenApi();
 
         group.MapGet("/inventory/{InventoryId}", async (Guid InventoryId, HomeInventoryapiContext db) =>
         {
-            return await db.InventoryMembers.Where(model => model.InventoryId == InventoryId).ToListAsync();
+            return await db.InventoryMembers.Where(model => model.InventoryId == InventoryId).ToListAsync()?? [];
         })
         .WithName("GetInventoryUsers")
         .WithOpenApi();
@@ -101,7 +112,7 @@ public static class InventoryEndpoints
 
         group.MapGet("/", async (HomeInventoryapiContext db) =>
         {
-            return await db.InventoryProducts.ToListAsync();
+            return await db.InventoryProducts.ToListAsync()?? [];
         })
         .WithName("GetAllInventoryProducts")
         .WithOpenApi();
@@ -157,7 +168,7 @@ public static class InventoryEndpoints
 
         group.MapGet("/", async (HomeInventoryapiContext db) =>
         {
-            return await db.Product.ToListAsync();
+            return await db.Product.ToListAsync() ?? [];
         })
         .WithName("GetAllProducts")
         .WithOpenApi();

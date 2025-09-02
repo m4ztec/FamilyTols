@@ -9,16 +9,10 @@
 
 <h1>Index</h1>
 
-<h1>@hi2</h1>
-
-<AuthorizeView>
-    <Authorized>
-        Hello, @context.User.Claims.FirstOrDefault(a => a.Type == "sub")?.Value
-    </Authorized>
-</AuthorizeView>
+<h3>@userId</h3>
 
 <p>
-    <a href="inventorys/create">Create New</a>
+    <button @onclick="CreateInventory">Create inventory</button>
 </p>
 
 <QuickGrid Class="table" Items="hi">
@@ -40,15 +34,7 @@
     private Task<AuthenticationState>? authenticationState { get; set; }
     IQueryable<Inventory>? hi;
 
-    string? hi2 = "";
-
-    //protected override async Task OnInitializedAsync()
-    //{
-        //var userid = "get it from the identy";
-        //var tmp = await http.GetFromJsonAsync<List<Inventory>>($"/api/InventoryMembers/users/{userid}");
-        //hi = tmp?.AsQueryable();
-    //}
-
+    string userId = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -56,7 +42,23 @@
         {
             var authState = await authenticationState;
             var user = authState?.User;
-            hi2 = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value;
+            userId = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value ?? "";
         }
+        var tmp = await http.GetFromJsonAsync<IEnumerable<InventoryMembers>>($"/api/InventoryMembers/users/{userId}") ?? [];
+        var tmp2 = await http.PostAsJsonAsync("/api/Inventory/Bulk/get", tmp.Select(a => a.InventoryId).ToArray());
+        var tmp3 = await tmp2.Content.ReadFromJsonAsync<IEnumerable<Inventory>>();
+
+        hi = tmp3?.AsQueryable();
+    }
+
+    private async Task CreateInventory()
+    {
+        Inventory tmp = new ()
+        {
+            Onwer = userId,
+            LastModifiedAt = DateTimeOffset.UtcNow,
+            
+        };
+        var hi = await http.PostAsJsonAsync("/api/Inventory/", tmp);
     }
 }
