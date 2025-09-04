@@ -1,5 +1,5 @@
 ﻿using HomeInventory.api;
-using HomeInventory.api.dbContext;
+using HomeInventory.api.Dbcontext;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
