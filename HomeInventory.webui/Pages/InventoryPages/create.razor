@@ -1,0 +1,39 @@
+﻿@page "/inventory/create"
+@using HomeInventory.shared.Models
+@inject HttpClient http
+@attribute [Authorize]
+<h3>create</h3>
+
+<EditForm Model="@inv" OnValidSubmit="@CreateInventory">
+
+    <div class="mb-3">
+        <label>Name:</label>
+        <InputText @bind-Value="inv.Name" class="form-control" />
+        <ValidationMessage For="@(() => inv.Name)" />
+    </div>
+
+    <div class="mb-3">
+        <label>Email:</label>
+        <InputText @bind-Value="inv.Description" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+</EditForm>
+
+@code {
+
+    [SupplyParameterFromQuery]
+    string Owner { get; set; }
+
+    private Inventory inv = new()
+    {
+        Onwer = Owner
+    };
+
+    private async Task CreateInventory()
+    {
+        inv.CreatedAt = DateTimeOffset.UtcNow;
+        inv.LastModifiedAt = DateTimeOffset.UtcNow;
+        var hi = await http.PostAsJsonAsync("/api/Inventory/", inv);
+    }
+}

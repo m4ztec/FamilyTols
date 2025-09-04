@@ -1,8 +1,9 @@
-@page "/inventorys"
+@page "/inventory"
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @using HomeInventory.shared.Models
 @inject HttpClient http
+@inject NavigationManager Navigation
 @attribute [Authorize]
 
 <PageTitle>Index</PageTitle>
@@ -12,7 +13,7 @@
 <h3>@userId</h3>
 
 <p>
-    <button @onclick="CreateInventory">Create inventory</button>
+    <button @onclick="HIHIHI">Create inventory</button>
 </p>
 
 <QuickGrid Class="table" Items="hi">
@@ -33,7 +34,6 @@
     [CascadingParameter]
     private Task<AuthenticationState>? authenticationState { get; set; }
     IQueryable<Inventory>? hi;
-
     string userId = "";
 
     protected override async Task OnInitializedAsync()
@@ -49,6 +49,12 @@
         var tmp3 = await tmp2.Content.ReadFromJsonAsync<IEnumerable<Inventory>>();
 
         hi = tmp3?.AsQueryable();
+    }
+
+
+    private void HIHIHI()
+    {
+        Navigation.NavigateTo($"/inventory/create?Onwer={userId}");
     }
 
     private async Task CreateInventory()

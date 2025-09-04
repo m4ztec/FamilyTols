@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HomeInventory.shared.Models;
 
@@ -12,7 +13,7 @@ public class Inventory
     [Required]
     public required string Onwer { get; set; }
 
-    [Required]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTimeOffset CreatedAt
     {
         get;
@@ -22,5 +23,6 @@ public class Inventory
         }
     }
 
+    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTimeOffset LastModifiedAt { get; set; }
 }
