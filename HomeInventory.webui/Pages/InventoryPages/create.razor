@@ -1,39 +1,51 @@
 ﻿@page "/inventory/create"
 @using HomeInventory.shared.Models
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @inject HttpClient http
+@inject NavigationManager Navigation
 @attribute [Authorize]
 <h3>create</h3>
 
-<EditForm Model="@inv" OnValidSubmit="@CreateInventory">
+<div class="mb-3">
+    <label>Name:</label>
+    <InputText @bind-Value="tmpName" class="form-control" />
+</div>
 
-    <div class="mb-3">
-        <label>Name:</label>
-        <InputText @bind-Value="inv.Name" class="form-control" />
-        <ValidationMessage For="@(() => inv.Name)" />
-    </div>
+<div class="mb-3">
+    <label>Email:</label>
+    <InputText @bind-Value="tmpDesc" class="form-control" />
+</div>
 
-    <div class="mb-3">
-        <label>Email:</label>
-        <InputText @bind-Value="inv.Description" class="form-control" />
-    </div>
-
-    <button type="submit" class="btn btn-primary">Submit</button>
-</EditForm>
+<button type="submit" class="btn btn-primary" @onclick="CreateInventory">Submit</button>
 
 @code {
 
-    [SupplyParameterFromQuery]
-    string Owner { get; set; }
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationState { get; set; }
 
-    private Inventory inv = new()
+    string? tmpName, tmpDesc;
+
+    string userId = "";
+
+    protected override async Task OnInitializedAsync()
     {
-        Onwer = Owner
-    };
+        if (authenticationState is not null)
+        {
+            var authState = await authenticationState;
+            var user = authState?.User;
+            userId = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value ?? "";
+        }
+    }
 
     private async Task CreateInventory()
     {
-        inv.CreatedAt = DateTimeOffset.UtcNow;
-        inv.LastModifiedAt = DateTimeOffset.UtcNow;
+        Inventory inv = new()
+        {
+            Name = tmpName,
+            Description = tmpDesc,
+            Onwer = userId,
+        };
         var hi = await http.PostAsJsonAsync("/api/Inventory/", inv);
+        Navigation.NavigateTo("/inventory");
     }
 }

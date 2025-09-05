@@ -1,28 +1,18 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HomeInventory.shared.Models;
 
-public class Inventory
+public class Inventory : IAuditable
 {
     [Key]
-    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid Id { get; set; }
     public string? Name { get; set; }
     public string? Description { get; set; }
 
     [Required]
     public required string Onwer { get; set; }
 
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public DateTimeOffset CreatedAt
-    {
-        get;
-        init
-        {
-            field = DateTimeOffset.UtcNow;
-        }
-    }
+    public DateTimeOffset CreatedAt { get; set; }
 
-    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTimeOffset LastModifiedAt { get; set; }
 }

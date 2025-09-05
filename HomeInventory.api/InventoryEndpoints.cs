@@ -1,4 +1,4 @@
-﻿using HomeInventory.api.dbContext;
+﻿using HomeInventory.api.Dbcontext;
 using HomeInventory.shared.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

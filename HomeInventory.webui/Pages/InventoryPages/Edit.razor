@@ -1,0 +1,53 @@
+﻿@page "/inventory/edit/{id}"
+@using HomeInventory.shared.Models
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inject HttpClient http
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+@if (inv is null)
+{
+    <p role="alert">Sorry, there's nothing at this address.</p>
+}
+else
+{
+    <h3>Edit</h3>
+
+    <div class="mb-3">
+        <label>Name:</label>
+        <InputText @bind-Value="inv.Name" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label>Descrition</label>
+        <InputText @bind-Value="inv.Description" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary" @onclick="EditInventory">Save</button>
+    <button type="reset" class="btn btn-primary"  href="/inventory">Cancel</button>
+}
+
+@code {
+
+    [Parameter]
+    public required string id { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationState { get; set; }
+
+    Inventory? inv;
+
+    protected override async Task OnInitializedAsync()
+    {
+        inv = await http.GetFromJsonAsync<Inventory>($"/api/Inventory/{id}");
+    }
+
+    private async Task EditInventory()
+    {
+        var editedResponse = await http.PutAsJsonAsync("/api/Inventory/", inv);
+        if (editedResponse.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/inventory");
+        }
+    }
+}

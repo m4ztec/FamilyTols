@@ -31,12 +31,12 @@ namespace HomeInventory.api.Dbcontext
                 if (entry.State == EntityState.Added)
                 {
                     entry.Entity.CreatedAt = utcNow;
-                    entry.Entity.LastModified = utcNow;
+                    entry.Entity.LastModifiedAt = utcNow;
                 }
                 else if (entry.State == EntityState.Modified)
                 {
                     entry.Property(e => e.CreatedAt).IsModified = false;
-                    entry.Entity.LastModified = utcNow;
+                    entry.Entity.LastModifiedAt = utcNow;
                 }
             }
         }
