@@ -117,18 +117,25 @@ public static class InventoryEndpoints
         .WithName("GetAllInventoryProducts")
         .WithOpenApi();
 
-        group.MapGet("/{id}", async Task<Results<Ok<InventoryProducts>, NotFound>> (Guid inventoryid, HomeInventoryapiContext db) =>
+        group.MapGet("/{inventoryid}", async Task<Results<Ok<Product[]>, NotFound>> (Guid inventoryid, HomeInventoryapiContext db) =>
         {
-            return await db.InventoryProducts.AsNoTracking()
-                .FirstOrDefaultAsync(model => model.InventoryId == inventoryid)
-                is InventoryProducts model
-                    ? TypedResults.Ok(model)
-                    : TypedResults.NotFound();
+            var inventoryproducts = await db.InventoryProducts
+                .Where(model => model.InventoryId == inventoryid)
+                .Select(a => a.ProductName)
+                .ToArrayAsync();
+
+            var products = await db.Product
+                .Where(product => inventoryproducts.Contains(product.Name))
+                .ToArrayAsync();
+
+            return products.Length > 0
+                ? TypedResults.Ok(products)
+                : TypedResults.NotFound();
         })
         .WithName("GetInventoryProductsById")
         .WithOpenApi();
 
-        group.MapPut("/{id}", async Task<Results<Ok, NotFound>> (Guid inventoryid, InventoryProducts inventoryProducts, HomeInventoryapiContext db) =>
+        group.MapPut("/{inventoryid}", async Task<Results<Ok, NotFound>> (Guid inventoryid, InventoryProducts inventoryProducts, HomeInventoryapiContext db) =>
         {
             var affected = await db.InventoryProducts
                 .Where(model => model.InventoryId == inventoryid)

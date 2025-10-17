@@ -1,8 +1,30 @@
 ﻿@page "/inventory/{inventoryId}/products"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using HomeInventory.shared.Models
+@inject HttpClient http
+@attribute [Authorize]
 
 <h3>Porducts</h3>
+
+<QuickGrid Class="table" Items="products">
+    <PropertyColumn Property="product => product.Name" />
+    <PropertyColumn Property="product => product.Description" />
+    <PropertyColumn Property="product => product.SupposedPrice" />
+
+    <TemplateColumn Context="products">
+
+    </TemplateColumn>
+</QuickGrid>
 
 @code {
     [Parameter]
     public required string inventoryId { get; set; }
+
+    public IQueryable<Product>? products;
+
+    public async Task GetPorducts()
+    {
+        var tmp = await http.GetFromJsonAsync<IEnumerable<Product>>($"/api/InventoryProducts{inventoryId}") ?? [];
+        products = tmp?.AsQueryable();
+    }
 }
