@@ -27,4 +27,7 @@ builder.Services.AddOidcAuthentication(options =>
     options.ProviderOptions.DefaultScopes.Add("blazor-api-scope");
 });
 
+builder.Services.AddSingleton<JsUtills>();
+
 await builder.Build().RunAsync();
+

@@ -1,0 +1,25 @@
+@page "/dialog-demo"
+
+<h3>Dialog Demo</h3>
+
+<button class="btn btn-primary" @onclick="ShowDialog">Open Dialog</button>
+
+<dialog @ref="myDialog">
+    <h4>Blazor Native Dialog</h4>
+    <p>This is a native HTML dialog element!</p>
+    <button @onclick="CloseDialog">Close</button>
+</dialog>
+
+@code {
+    private ElementReference myDialog;
+
+    private async Task ShowDialog()
+    {
+        await JsUtills.OpenDialog(myDialog);
+    }
+
+    private async Task CloseDialog()
+    {
+        await JsUtills.CloseDialog(myDialog);
+    }
+}

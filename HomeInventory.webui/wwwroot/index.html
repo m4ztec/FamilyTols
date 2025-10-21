@@ -28,6 +28,12 @@
     </div>
     <script src="_content/Microsoft.AspNetCore.Components.WebAssembly.Authentication/AuthenticationService.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
+
+    <script>
+        window.openDialog = (dialog) => dialog.showModal();
+        window.closeDialog = (dialog) => dialog.close();
+    </script>
+
 </body>
 
 </html>

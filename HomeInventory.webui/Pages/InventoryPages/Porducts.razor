@@ -1,7 +1,9 @@
 ﻿@page "/inventory/{inventoryId}/products"
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using HomeInventory.shared.Models
+
 @inject HttpClient http
+@inject JsUtills JsUtills
 @attribute [Authorize]
 
 <h3>Porducts</h3>
@@ -11,20 +13,78 @@
     <PropertyColumn Property="product => product.Description" />
     <PropertyColumn Property="product => product.SupposedPrice" />
 
-    <TemplateColumn Context="products">
-
+    <TemplateColumn Title="Actions">
+        <button class="btn btn-sm btn-primary" @onclick="() => EditRow(context)">Edit</button>
     </TemplateColumn>
 </QuickGrid>
+
+
+<dialog @ref="productDialog">
+    <h4>Edit Person</h4>
+
+    @if (selectedProduct is not null)
+    {
+        <div class="mb-3">
+            <label>Name:</label>
+            <input @bind="selectedProduct.Name" class="form-control" />
+        </div>
+        <button class="btn btn-success me-2" @onclick="SaveEdit">Save</button>
+        <button class="btn btn-secondary" @onclick="CloseDialog">Cancel</button>
+    }
+</dialog>
 
 @code {
     [Parameter]
     public required string inventoryId { get; set; }
 
+    private ElementReference productDialog;
+
     public IQueryable<Product>? products;
+
+    public Product? selectedProduct;
+    private Product? backupProduct;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetPorducts();
+    }
 
     public async Task GetPorducts()
     {
-        var tmp = await http.GetFromJsonAsync<IEnumerable<Product>>($"/api/InventoryProducts{inventoryId}") ?? [];
-        products = tmp?.AsQueryable();
+        products = (await http.GetFromJsonAsync<IEnumerable<Product>>($"/api/InventoryProducts{inventoryId}"))?.AsQueryable();
+    }
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private async Task EditRow(Product product)
+    {
+        // Clone to allow cancel
+        backupProduct = new Product
+        {
+            Name = product.Name,
+            Description = product.Description,
+            SupposedPrice = product.SupposedPrice
+        };
+
+        selectedProduct = product;
+         await JsUtills.OpenDialog(productDialog);
+    }
+
+    private async Task SaveEdit()
+    {
+        selectedProduct = null;
+        await JsUtills.CloseDialog(productDialog);
+    }
+
+    private async Task CloseDialog()
+    {
+        if (backupProduct is not null && selectedProduct is not null)
+        {
+            // Restore old values if canceled
+            selectedProduct.Name = backupProduct.Name;
+            selectedProduct.Description = backupProduct.Description;
+        }
+        selectedProduct = null;
+        await JsUtills.CloseDialog(productDialog);
     }
 }

@@ -119,13 +119,14 @@ public static class InventoryEndpoints
 
         group.MapGet("/{inventoryid}", async Task<Results<Ok<Product[]>, NotFound>> (Guid inventoryid, HomeInventoryapiContext db) =>
         {
-            var inventoryproducts = await db.InventoryProducts
-                .Where(model => model.InventoryId == inventoryid)
-                .Select(a => a.ProductName)
-                .ToArrayAsync();
-
-            var products = await db.Product
-                .Where(product => inventoryproducts.Contains(product.Name))
+             var products = await db.InventoryProducts
+                .Where(ip => ip.InventoryId == inventoryid)
+                .Join(
+                    db.Product,
+                    ip => ip.ProductName,
+                    p => p.Name,
+                    (ip, p) => p
+                )
                 .ToArrayAsync();
 
             return products.Length > 0
