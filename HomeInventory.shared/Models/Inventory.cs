@@ -15,4 +15,6 @@ public class Inventory : IAuditable
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset LastModifiedAt { get; set; }
+    
+    public ICollection<InventoryProducts> InventoryProducts { get; set; } = [];
 }

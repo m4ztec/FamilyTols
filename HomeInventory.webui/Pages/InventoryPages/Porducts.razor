@@ -9,9 +9,10 @@
 <h3>Porducts</h3>
 
 <QuickGrid Class="table" Items="products">
-    <PropertyColumn Property="product => product.Name" />
-    <PropertyColumn Property="product => product.Description" />
-    <PropertyColumn Property="product => product.SupposedPrice" />
+    <PropertyColumn Property="product => product.ProductName" />
+    <PropertyColumn Property="product => product.ProductPrice" />
+    <PropertyColumn Property="product => product.ExistingAmount" />
+    <PropertyColumn Property="product => product.DesiredAmount" />
 
     <TemplateColumn Title="Actions">
         <button class="btn btn-sm btn-primary" @onclick="() => EditRow(context)">Edit</button>
@@ -26,7 +27,15 @@
     {
         <div class="mb-3">
             <label>Name:</label>
-            <input @bind="selectedProduct.Name" class="form-control" />
+            <input @bind="selectedProduct.ProductName" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label>Name:</label>
+            <input @bind="selectedProduct.ExistingAmount" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label>Name:</label>
+            <input @bind="selectedProduct.DesiredAmount" class="form-control" />
         </div>
         <button class="btn btn-success me-2" @onclick="SaveEdit">Save</button>
         <button class="btn btn-secondary" @onclick="CloseDialog">Cancel</button>
@@ -39,9 +48,9 @@
 
     private ElementReference productDialog;
 
-    public IQueryable<Product>? products;
+    public IQueryable<InventoryProductDto>? products;
 
-    public Product? selectedProduct;
+    public InventoryProductDto? selectedProduct;
     private Product? backupProduct;
 
     protected override async Task OnInitializedAsync()
@@ -51,23 +60,18 @@
 
     public async Task GetPorducts()
     {
-        products = (await http.GetFromJsonAsync<IEnumerable<Product>>($"/api/InventoryProducts{inventoryId}"))?.AsQueryable();
+        products = (await http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/InventoryProducts/{inventoryId}"))?.AsQueryable();
     }
 
-    [Inject] private IJSRuntime JS { get; set; } = default!;
-
-    private async Task EditRow(Product product)
+    private async Task AddNewRow()
     {
-        // Clone to allow cancel
-        backupProduct = new Product
-        {
-            Name = product.Name,
-            Description = product.Description,
-            SupposedPrice = product.SupposedPrice
-        };
+        selectedProduct = new InventoryProductDto();
+        await JsUtills.OpenDialog(productDialog);
+    }
 
-        selectedProduct = product;
-         await JsUtills.OpenDialog(productDialog);
+    private async Task EditRow(InventoryProductDto product)
+    {
+        await JsUtills.OpenDialog(productDialog);
     }
 
     private async Task SaveEdit()

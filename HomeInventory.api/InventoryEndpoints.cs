@@ -110,27 +110,22 @@ public static class InventoryEndpoints
     {
         var group = routes.MapGroup("/api/InventoryProducts").WithTags(nameof(InventoryProducts));
 
-        group.MapGet("/", async (HomeInventoryapiContext db) =>
+        group.MapGet("/{inventoryId}", async Task<Results<Ok<InventoryProductDto[]>, NotFound>> (Guid inventoryId, HomeInventoryapiContext db) =>
         {
-            return await db.InventoryProducts.ToListAsync()?? [];
-        })
-        .WithName("GetAllInventoryProducts")
-        .WithOpenApi();
-
-        group.MapGet("/{inventoryid}", async Task<Results<Ok<Product[]>, NotFound>> (Guid inventoryid, HomeInventoryapiContext db) =>
-        {
-             var products = await db.InventoryProducts
-                .Where(ip => ip.InventoryId == inventoryid)
-                .Join(
-                    db.Product,
-                    ip => ip.ProductName,
-                    p => p.Name,
-                    (ip, p) => p
-                )
+             var inventoryProducts = await db.InventoryProducts
+                .Where(ip => ip.InventoryId == inventoryId)
+                .Include(ip => ip.Product)
+                .Select(ip => new InventoryProductDto
+                {
+                    ProductName = ip.Product.Name,
+                    ProductPrice = ip.Product.SupposedPrice,
+                    ExistingAmount = ip.ExistingAmont,
+                    DesiredAmount = ip.DesiredAmont
+                })
                 .ToArrayAsync();
 
-            return products.Length > 0
-                ? TypedResults.Ok(products)
+            return inventoryProducts.Length > 0
+                ? TypedResults.Ok(inventoryProducts)
                 : TypedResults.NotFound();
         })
         .WithName("GetInventoryProductsById")
@@ -142,7 +137,7 @@ public static class InventoryEndpoints
                 .Where(model => model.InventoryId == inventoryid)
                 .ExecuteUpdateAsync(setters => setters
                   .SetProperty(m => m.InventoryId, inventoryProducts.InventoryId)
-                  .SetProperty(m => m.ProductName, inventoryProducts.ProductName)
+                  .SetProperty(m => m.ProductId, inventoryProducts.ProductId)
                   .SetProperty(m => m.ExistingAmont, inventoryProducts.ExistingAmont)
                   .SetProperty(m => m.DesiredAmont, inventoryProducts.DesiredAmont)
                   );
