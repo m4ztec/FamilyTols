@@ -10,11 +10,12 @@ public class Inventory : IAuditable
     public string? Description { get; set; }
 
     [Required]
-    public required string Onwer { get; set; }
+    public required string Owner { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset LastModifiedAt { get; set; }
-    
+
     public ICollection<InventoryProducts> InventoryProducts { get; set; } = [];
+    public ICollection<InventoryMembers> InventoryMembers { get; set; } = [];
 }

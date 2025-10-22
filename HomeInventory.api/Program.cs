@@ -85,7 +85,6 @@ app.UseAuthorization();
 
 app.MapInventoryEndpoints();
 app.MapInventoryMembersEndpoints();
-app.MapInventoryProductsEndpoints();
 app.MapProductEndpoints();
 
 app.MapGet("/hi", () =>

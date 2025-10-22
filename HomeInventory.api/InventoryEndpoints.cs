@@ -1,7 +1,6 @@
 ﻿using HomeInventory.api.Dbcontext;
 using HomeInventory.shared.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomeInventory.api;
@@ -10,7 +9,8 @@ public static class InventoryEndpoints
 {
     public static void MapInventoryEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/Inventory").WithTags(nameof(Inventory));
+        var prefix = "/api/Inventory";
+        var group = routes.MapGroup(prefix).WithTags(nameof(Inventory)).WithOpenApi();
 
         group.MapGet("/{id}", async Task<Results<Ok<Inventory>, NotFound>> (Guid id, HomeInventoryapiContext db) =>
         {
@@ -20,8 +20,7 @@ public static class InventoryEndpoints
                     ? TypedResults.Ok(model)
                     : TypedResults.NotFound();
         })
-        .WithName("GetInventoryById")
-        .WithOpenApi();
+        .WithName("GetInventoryById");
 
         group.MapPut("/", async Task<Results<Ok, NotFound>> (Inventory inventory, HomeInventoryapiContext db) =>
         {
@@ -30,22 +29,30 @@ public static class InventoryEndpoints
                     .SetProperty(m => m.Id, inventory.Id)
                     .SetProperty(m => m.Name, inventory.Name)
                     .SetProperty(m => m.Description, inventory.Description)
-                    .SetProperty(m => m.Onwer, inventory.Onwer)
+                    .SetProperty(m => m.Owner, inventory.Owner)
                     );
             return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
         })
-        .WithName("UpdateInventory")
-        .WithOpenApi();
+        .WithName("UpdateInventory");
 
-        group.MapPost("/", async (Inventory inventory, HomeInventoryapiContext db) =>
+        group.MapPost("/", async Task<IResult> (Inventory inventory, HomeInventoryapiContext db) =>
         {
             db.Inventory.Add(inventory);
-            db.InventoryMembers.Add(new (){UserId = inventory.Onwer, InventoryId = inventory.Id, MemberSince = DateTimeOffset.UtcNow});
-            await db.SaveChangesAsync();
-            return TypedResults.Created($"/api/Inventory/{inventory.Id}", inventory);
+
+            db.InventoryMembers.Add(new InventoryMembers
+            {
+                UserId = inventory.Owner,
+                InventoryId = inventory.Id,
+                MemberSince = DateTimeOffset.UtcNow
+            });
+
+            var isCreated = await db.SaveChangesAsync();
+
+            return isCreated > 0
+            ? TypedResults.Created($"{prefix}/{inventory.Id}", inventory)
+            : TypedResults.BadRequest();
         })
-        .WithName("CreateInventory")
-        .WithOpenApi();
+        .WithName("CreateInventory");
 
         group.MapDelete("/{id}", async Task<Results<Ok, NotFound>> (Guid id, HomeInventoryapiContext db) =>
         {
@@ -54,129 +61,95 @@ public static class InventoryEndpoints
                 .ExecuteDeleteAsync();
             return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
         })
-        .WithName("DeleteInventory")
-        .WithOpenApi();
+        .WithName("DeleteInventory");
 
-        group.MapPost("/bulk/get", async ([FromBody] Guid[] ids, HomeInventoryapiContext db) =>
+        group.MapGet("/{inventoryId}/Products", async Task<Results<Ok<InventoryProductDto[]>, NotFound>> (Guid inventoryId, HomeInventoryapiContext db) =>
         {
-            if (ids.Length == 0) { return TypedResults.Ok(new List<Inventory>()); }
-            var tmp = await db.Inventory.Where(a => ids.Contains(a.Id)).ToListAsync();
-            return TypedResults.Ok(tmp ?? []);
-        })
-        .WithName("BulkGetInventory")
-        .WithOpenApi();
-    }
-
-    public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
-    {
-        var group = routes.MapGroup("/api/InventoryMembers").WithTags(nameof(InventoryMembers));
-
-        group.MapGet("/users/{userid}", async (string userid, HomeInventoryapiContext db) =>
-        {
-            var tmp = await db.InventoryMembers.Where(model => model.UserId == userid).ToListAsync();
-            return tmp ?? [];
-        })
-        .WithName("GetUserInventories")
-        .WithOpenApi();
-
-        group.MapGet("/inventory/{InventoryId}", async (Guid InventoryId, HomeInventoryapiContext db) =>
-        {
-            return await db.InventoryMembers.Where(model => model.InventoryId == InventoryId).ToListAsync()?? [];
-        })
-        .WithName("GetInventoryUsers")
-        .WithOpenApi();
-
-        group.MapPost("/", async (InventoryMembers inventoryMembers, HomeInventoryapiContext db) =>
-        {
-            db.InventoryMembers.Add(inventoryMembers);
-            await db.SaveChangesAsync();
-            return TypedResults.Created($"/api/InventoryMembers/{inventoryMembers.UserId}", inventoryMembers);
-        })
-        .WithName("CreateInventoryMembers")
-        .WithOpenApi();
-
-        group.MapDelete("/", async Task<Results<Ok, NotFound>> ([FromBody] InventoryMembers inventoryMembers, HomeInventoryapiContext db) =>
-        {
-            var affected = await db.InventoryMembers
-                .Where(model => model.UserId == inventoryMembers.UserId)
-                .ExecuteDeleteAsync();
-            return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
-        })
-        .WithName("DeleteInventoryMembers")
-        .WithOpenApi();
-    }
-
-    public static void MapInventoryProductsEndpoints(this IEndpointRouteBuilder routes)
-    {
-        var group = routes.MapGroup("/api/InventoryProducts").WithTags(nameof(InventoryProducts));
-
-        group.MapGet("/{inventoryId}", async Task<Results<Ok<InventoryProductDto[]>, NotFound>> (Guid inventoryId, HomeInventoryapiContext db) =>
-        {
-             var inventoryProducts = await db.InventoryProducts
-                .Where(ip => ip.InventoryId == inventoryId)
-                .Include(ip => ip.Product)
-                .Select(ip => new InventoryProductDto
-                {
-                    ProductName = ip.Product.Name,
-                    ProductPrice = ip.Product.SupposedPrice,
-                    ExistingAmount = ip.ExistingAmont,
-                    DesiredAmount = ip.DesiredAmont
-                })
-                .ToArrayAsync();
+            var inventoryProducts = await db.InventoryProducts
+               .Where(ip => ip.InventoryId == inventoryId)
+               .Select(ip => new InventoryProductDto
+               {
+                   ProductName = ip.Product.Name,
+                   ProductPrice = ip.Product.SupposedPrice,
+                   ExistingAmount = ip.ExistingAmont,
+                   DesiredAmount = ip.DesiredAmont
+               })
+               .ToArrayAsync();
 
             return inventoryProducts.Length > 0
                 ? TypedResults.Ok(inventoryProducts)
                 : TypedResults.NotFound();
         })
-        .WithName("GetInventoryProductsById")
-        .WithOpenApi();
-
-        group.MapPut("/{inventoryid}", async Task<Results<Ok, NotFound>> (Guid inventoryid, InventoryProducts inventoryProducts, HomeInventoryapiContext db) =>
+        .WithName("GetInventoryProductsById");
+        
+        group.MapPost("/{inventoryId:guid}/products", async (Guid inventoryId, InventoryProductDto dto, HomeInventoryapiContext db) =>
         {
-            var affected = await db.InventoryProducts
-                .Where(model => model.InventoryId == inventoryid)
-                .ExecuteUpdateAsync(setters => setters
-                  .SetProperty(m => m.InventoryId, inventoryProducts.InventoryId)
-                  .SetProperty(m => m.ProductId, inventoryProducts.ProductId)
-                  .SetProperty(m => m.ExistingAmont, inventoryProducts.ExistingAmont)
-                  .SetProperty(m => m.DesiredAmont, inventoryProducts.DesiredAmont)
-                  );
-            return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
-        })
-        .WithName("UpdateInventoryProducts")
-        .WithOpenApi();
+            var inventoryExists = await db.Inventory.AnyAsync(i => i.Id == inventoryId);
+            if (!inventoryExists)
+                return Results.NotFound($"Inventory {inventoryId} not found.");
 
-        group.MapPost("/", async (InventoryProducts inventoryProducts, HomeInventoryapiContext db) =>
-        {
-            db.InventoryProducts.Add(inventoryProducts);
+            var product = await db.Product.FirstOrDefaultAsync(p => p.Name == dto.ProductName);
+            if (product == null)
+                return Results.NotFound($"Product '{dto.ProductName}' not found.");
+
+            bool alreadyLinked = await db.InventoryProducts.AnyAsync(ip =>
+                ip.InventoryId == inventoryId && ip.ProductId == product.Id);
+            if (alreadyLinked)
+                return Results.Conflict($"Product '{dto.ProductName}' is already in this inventory.");
+
+            var newItem = new InventoryProducts
+            {
+                InventoryId = inventoryId,
+                ProductId = product.Id,
+                ExistingAmont = dto.ExistingAmount,
+                DesiredAmont = dto.DesiredAmount
+            };
+
+            db.InventoryProducts.Add(newItem);
             await db.SaveChangesAsync();
-            return TypedResults.Created($"/api/InventoryProducts/{inventoryProducts.InventoryId}", inventoryProducts);
-        })
-        .WithName("CreateInventoryProducts")
-        .WithOpenApi();
 
-        group.MapDelete("/{id}", async Task<Results<Ok, NotFound>> (Guid inventoryid, HomeInventoryapiContext db) =>
-        {
-            var affected = await db.InventoryProducts
-                .Where(model => model.InventoryId == inventoryid)
-                .ExecuteDeleteAsync();
-            return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
+            return Results.Created(
+                $"/api/inventories/{inventoryId}/products/{product.Id}",
+                new
+                {
+                    InventoryId = inventoryId,
+                    product.Id,
+                    dto.ProductName,
+                    dto.ProductPrice,
+                    dto.ExistingAmount,
+                    dto.DesiredAmount
+                });
         })
-        .WithName("DeleteInventoryProducts")
-        .WithOpenApi();
+        .WithName("AddInventoryProduct");
     }
+
+    public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
+    {
+        var group = routes.MapGroup("/api/users").WithTags(nameof(InventoryMembers));
+
+        group.MapGet("/{userid}/inventories", async (string userid, HomeInventoryapiContext db) =>
+        {
+            var hi = await db.InventoryMembers
+                .Where(model => model.UserId == userid && model.Inventory != null)
+                .Select(a => a.Inventory!)
+                .ToArrayAsync();
+            
+            return TypedResults.Ok(hi ?? []);
+        })
+        .WithName("GetUserInventories");
+    }
+
     public static void MapProductEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/Product").WithTags(nameof(Product));
+        var group = routes.MapGroup("/api/Product").WithTags(nameof(Product)).WithOpenApi();
 
         group.MapGet("/", async (HomeInventoryapiContext db) =>
         {
             return await db.Product.ToListAsync() ?? [];
         })
-        .WithName("GetAllProducts")
-        .WithOpenApi();
+        .WithName("GetAllProducts");
 
-        group.MapGet("/{id}", async Task<Results<Ok<Product>, NotFound>> (string name, HomeInventoryapiContext db) =>
+        group.MapGet("/{name}", async Task<Results<Ok<Product>, NotFound>> (string name, HomeInventoryapiContext db) =>
         {
             return await db.Product.AsNoTracking()
                 .FirstOrDefaultAsync(model => model.Name == name)
@@ -184,10 +157,9 @@ public static class InventoryEndpoints
                     ? TypedResults.Ok(model)
                     : TypedResults.NotFound();
         })
-        .WithName("GetProductById")
-        .WithOpenApi();
+        .WithName("GetProductById");
 
-        group.MapPut("/{id}", async Task<Results<Ok, NotFound>> (string name, Product product, HomeInventoryapiContext db) =>
+        group.MapPut("/{name}", async Task<Results<Ok, NotFound>> (string name, Product product, HomeInventoryapiContext db) =>
         {
             var affected = await db.Product
                 .Where(model => model.Name == name)
@@ -198,8 +170,7 @@ public static class InventoryEndpoints
                   );
             return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
         })
-        .WithName("UpdateProduct")
-        .WithOpenApi();
+        .WithName("UpdateProduct");
 
         group.MapPost("/", async (Product product, HomeInventoryapiContext db) =>
         {
@@ -207,17 +178,15 @@ public static class InventoryEndpoints
             await db.SaveChangesAsync();
             return TypedResults.Created($"/api/Product/{product.Name}", product);
         })
-        .WithName("CreateProduct")
-        .WithOpenApi();
+        .WithName("CreateProduct");
 
-        group.MapDelete("/{id}", async Task<Results<Ok, NotFound>> (string name, HomeInventoryapiContext db) =>
+        group.MapDelete("/{name}", async Task<Results<Ok, NotFound>> (string name, HomeInventoryapiContext db) =>
         {
             var affected = await db.Product
                 .Where(model => model.Name == name)
                 .ExecuteDeleteAsync();
             return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
         })
-        .WithName("DeleteProduct")
-        .WithOpenApi();
+        .WithName("DeleteProduct");
     }
 }

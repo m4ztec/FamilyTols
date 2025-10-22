@@ -7,6 +7,9 @@
 @attribute [Authorize]
 
 <h3>Porducts</h3>
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="AddNewRow">Add product</button>
+</div>
 
 <QuickGrid Class="table" Items="products">
     <PropertyColumn Property="product => product.ProductName" />
@@ -15,28 +18,51 @@
     <PropertyColumn Property="product => product.DesiredAmount" />
 
     <TemplateColumn Title="Actions">
-        <button class="btn btn-sm btn-primary" @onclick="() => EditRow(context)">Edit</button>
+        <button class="btn btn-sm btn-primary" @onclick="() => EditInventoryProduct(context)">Edit</button>
     </TemplateColumn>
 </QuickGrid>
 
 
 <dialog @ref="productDialog">
-    <h4>Edit Person</h4>
+    <h4>@(isNewProduct ? "Add product to inventory" : "Edit inventory product")</h4>
 
     @if (selectedProduct is not null)
     {
         <div class="mb-3">
-            <label>Name:</label>
-            <input @bind="selectedProduct.ProductName" class="form-control" />
+            <label>Product:</label>
+            @if (isNewProduct)
+            {
+                <select class="form-select" @onchange="OnProductSelected">
+                    <option value="">-- select product --</option>
+                    @if (availableProducts is not null)
+                    {
+                        @foreach (var p in availableProducts)
+                        {
+                            <option value="@p.Name">@p.Name (@p.SupposedPrice.ToString("C"))</option>
+                        }
+                    }
+                </select>
+            }
+            else
+            {
+                <input class="form-control" value="@selectedProduct.ProductName" disabled />
+            }
+        </div>
+
+        <div class="mb-3">
+            <label>Existing amount:</label>
+            <input type="number" min="0" @bind="selectedProduct.ExistingAmount" class="form-control" />
         </div>
         <div class="mb-3">
-            <label>Name:</label>
-            <input @bind="selectedProduct.ExistingAmount" class="form-control" />
+            <label>Desired amount:</label>
+            <input type="number" min="0" @bind="selectedProduct.DesiredAmount" class="form-control" />
         </div>
-        <div class="mb-3">
-            <label>Name:</label>
-            <input @bind="selectedProduct.DesiredAmount" class="form-control" />
-        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
         <button class="btn btn-success me-2" @onclick="SaveEdit">Save</button>
         <button class="btn btn-secondary" @onclick="CloseDialog">Cancel</button>
     }
@@ -51,11 +77,15 @@
     public IQueryable<InventoryProductDto>? products;
 
     public InventoryProductDto? selectedProduct;
-    private Product? backupProduct;
+
+    private List<Product>? availableProducts;
+    private bool isNewProduct = false;
+    private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         await GetPorducts();
+        await LoadAvailableProducts();
     }
 
     public async Task GetPorducts()
@@ -66,29 +96,94 @@
     private async Task AddNewRow()
     {
         selectedProduct = new InventoryProductDto();
+        isNewProduct = true;
+        errorMessage = string.Empty;
         await JsUtills.OpenDialog(productDialog);
     }
 
-    private async Task EditRow(InventoryProductDto product)
+    private async Task EditInventoryProduct(InventoryProductDto product)
     {
+        // copy the product so edits don't modify the list directly
+        selectedProduct = new InventoryProductDto
+        {
+            ProductName = product.ProductName,
+            ProductPrice = product.ProductPrice,
+            ExistingAmount = product.ExistingAmount,
+            DesiredAmount = product.DesiredAmount
+        };
+        isNewProduct = false;
+        errorMessage = string.Empty;
         await JsUtills.OpenDialog(productDialog);
     }
 
     private async Task SaveEdit()
     {
-        selectedProduct = null;
-        await JsUtills.CloseDialog(productDialog);
+        if (selectedProduct is null)
+            return;
+
+        if (isNewProduct)
+        {
+            // basic validation
+            if (string.IsNullOrWhiteSpace(selectedProduct.ProductName))
+            {
+                errorMessage = "Please select a product.";
+                return;
+            }
+
+            var response = await http.PostAsJsonAsync($"/api/Inventory/{inventoryId}/products", selectedProduct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // refresh
+                await GetPorducts();
+                selectedProduct = null;
+                isNewProduct = false;
+                await JsUtills.CloseDialog(productDialog);
+            }
+            else
+            {
+                var text = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Error: {response.StatusCode} - {text}";
+            }
+        }
+        else
+        {
+            // editing inventory product isn't implemented server-side yet.
+            // close dialog for now and refresh.
+            selectedProduct = null;
+            await JsUtills.CloseDialog(productDialog);
+            await GetPorducts();
+        }
     }
 
     private async Task CloseDialog()
     {
-        if (backupProduct is not null && selectedProduct is not null)
-        {
-            // Restore old values if canceled
-            selectedProduct.Name = backupProduct.Name;
-            selectedProduct.Description = backupProduct.Description;
-        }
-        selectedProduct = null;
         await JsUtills.CloseDialog(productDialog);
+    }
+
+    private async Task LoadAvailableProducts()
+    {
+        try
+        {
+            availableProducts = (await http.GetFromJsonAsync<IEnumerable<Product>>("/api/Product/"))?.ToList();
+        }
+        catch
+        {
+            availableProducts = new List<Product>();
+        }
+    }
+
+    private async Task OnProductSelected(ChangeEventArgs e)
+    {
+        var name = e.Value?.ToString() ?? string.Empty;
+        if (string.IsNullOrEmpty(name) || selectedProduct is null)
+            return;
+
+        selectedProduct.ProductName = name;
+        var p = availableProducts?.FirstOrDefault(x => x.Name == name);
+        if (p is not null)
+            selectedProduct.ProductPrice = p.SupposedPrice;
+
+        await Task.CompletedTask;
     }
 }

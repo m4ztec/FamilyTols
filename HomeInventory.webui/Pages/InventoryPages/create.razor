@@ -43,7 +43,7 @@
         {
             Name = tmpName,
             Description = tmpDesc,
-            Onwer = userId,
+            Owner = userId,
         };
         var hi = await http.PostAsJsonAsync("/api/Inventory/", inv);
         Navigation.NavigateTo("/inventory");

@@ -19,7 +19,7 @@
 <QuickGrid Class="table" Items="userInvs">
     <PropertyColumn Property="inventory => inventory.Name" />
     <PropertyColumn Property="inventory => inventory.Description" />
-    <PropertyColumn Property="inventory => inventory.Onwer" />
+    <PropertyColumn Property="inventory => inventory.Owner" />
     <PropertyColumn Property="inventory => inventory.CreatedAt" />
     <PropertyColumn Property="inventory => inventory.LastModifiedAt" />
 
@@ -43,11 +43,9 @@
             var user = authState?.User;
             userId = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value ?? "";
         }
-        var tmp = await http.GetFromJsonAsync<IEnumerable<InventoryMembers>>($"/api/InventoryMembers/users/{userId}") ?? [];
-        var tmp2 = await http.PostAsJsonAsync("/api/Inventory/Bulk/get", tmp.Select(a => a.InventoryId).ToArray());
-        var tmp3 = await tmp2.Content.ReadFromJsonAsync<IEnumerable<Inventory>>();
 
-        userInvs = tmp3?.AsQueryable();
+        var hi = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
+        userInvs = hi?.AsQueryable();
     }
 
     private void CreateInv()
