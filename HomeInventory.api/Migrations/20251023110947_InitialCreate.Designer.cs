@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HomeInventory.api.Migrations
 {
     [DbContext(typeof(HomeInventoryapiContext))]
-    [Migration("20250905081317_innit")]
-    partial class innit
+    [Migration("20251023110947_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -38,7 +38,7 @@ namespace HomeInventory.api.Migrations
                     b.Property<string>("Name")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Onwer")
+                    b.Property<string>("Owner")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -60,6 +60,8 @@ namespace HomeInventory.api.Migrations
 
                     b.HasKey("UserId", "InventoryId");
 
+                    b.HasIndex("InventoryId");
+
                     b.ToTable("InventoryMembers");
                 });
 
@@ -68,7 +70,7 @@ namespace HomeInventory.api.Migrations
                     b.Property<Guid>("InventoryId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ProductName")
+                    b.Property<Guid>("ProductId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("DesiredAmont")
@@ -77,25 +79,79 @@ namespace HomeInventory.api.Migrations
                     b.Property<int>("ExistingAmont")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("InventoryId", "ProductName");
+                    b.HasKey("InventoryId", "ProductId");
+
+                    b.HasIndex("ProductId");
 
                     b.ToTable("InventoryProducts");
                 });
 
             modelBuilder.Entity("HomeInventory.shared.Models.Product", b =>
                 {
-                    b.Property<string>("Name")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
+                        .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("SupposedPrice")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
 
-                    b.HasKey("Name");
+                    b.Property<double>("SupposedPrice")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Product");
+                });
+
+            modelBuilder.Entity("HomeInventory.shared.Models.InventoryMembers", b =>
+                {
+                    b.HasOne("HomeInventory.shared.Models.Inventory", "Inventory")
+                        .WithMany("InventoryMembers")
+                        .HasForeignKey("InventoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Inventory");
+                });
+
+            modelBuilder.Entity("HomeInventory.shared.Models.InventoryProducts", b =>
+                {
+                    b.HasOne("HomeInventory.shared.Models.Inventory", "Inventory")
+                        .WithMany("InventoryProducts")
+                        .HasForeignKey("InventoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HomeInventory.shared.Models.Product", "Product")
+                        .WithMany("InventoryProducts")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Inventory");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("HomeInventory.shared.Models.Inventory", b =>
+                {
+                    b.Navigation("InventoryMembers");
+
+                    b.Navigation("InventoryProducts");
+                });
+
+            modelBuilder.Entity("HomeInventory.shared.Models.Product", b =>
+                {
+                    b.Navigation("InventoryProducts");
                 });
 #pragma warning restore 612, 618
         }

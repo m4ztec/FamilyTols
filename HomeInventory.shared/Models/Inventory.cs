@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace HomeInventory.shared.Models;
 
@@ -17,5 +18,7 @@ public class Inventory : IAuditable
     public DateTimeOffset LastModifiedAt { get; set; }
 
     public ICollection<InventoryProducts> InventoryProducts { get; set; } = [];
+
+    [JsonIgnore]
     public ICollection<InventoryMembers> InventoryMembers { get; set; } = [];
 }

@@ -90,7 +90,7 @@
 
     public async Task GetPorducts()
     {
-        products = (await http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/InventoryProducts/{inventoryId}"))?.AsQueryable();
+        products = (await http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/Inventory/{inventoryId}/Products"))?.AsQueryable();
     }
 
     private async Task AddNewRow()
