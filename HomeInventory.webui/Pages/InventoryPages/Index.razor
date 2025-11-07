@@ -15,8 +15,20 @@
 <p>
     <button @onclick="CreateInv">Create inventory</button>
 </p>
-
-<QuickGrid Class="table" Items="userInvs">
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height:60vh">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-2">Loading inventories…</div>
+        </div>
+    </div>
+}
+else
+{
+    <QuickGrid Class="table" Items="userInvs">
     <PropertyColumn Property="inventory => inventory.Name" />
     <PropertyColumn Property="inventory => inventory.Description" />
     <PropertyColumn Property="inventory => inventory.Owner" />
@@ -29,24 +41,33 @@
         <button @onclick="(()=>DeleteInv(inventory.Id))">Delete</button>
     </TemplateColumn>
 </QuickGrid>
+}
 
 @code {
     [CascadingParameter]
     private Task<AuthenticationState>? authenticationState { get; set; }
     IQueryable<Inventory>? userInvs;
     string userId = "";
+    bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
+        isLoading = true;
         if (authenticationState is not null)
         {
             var authState = await authenticationState;
             var user = authState?.User;
             userId = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value ?? "";
         }
-
-        var hi = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
-        userInvs = hi?.AsQueryable();
+        try
+        {
+            var hi = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
+            userInvs = hi?.AsQueryable();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private void CreateInv()

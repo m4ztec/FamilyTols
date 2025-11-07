@@ -14,7 +14,9 @@
 
 <QuickGrid Class="table" Items="products">
     <PropertyColumn Property="product => product.ProductName" />
-    <PropertyColumn Property="product => product.ProductPrice" />
+    <TemplateColumn Title="Price" Context="product">
+        @($"{product.ProductPrice:0.00} €")
+    </TemplateColumn>
     <PropertyColumn Property="product => product.ExistingAmount" />
     <PropertyColumn Property="product => product.DesiredAmount" />
 
@@ -41,7 +43,7 @@
                         {
                             @foreach (var p in availableProducts)
                             {
-                                <option value="@p.Name">@p.Name (@p.SupposedPrice.ToString("C"))</option>
+                                <option value="@p.Name">@p.Name (@p.SupposedPrice.ToString()€)</option>
                             }
                         }
                     </select>
