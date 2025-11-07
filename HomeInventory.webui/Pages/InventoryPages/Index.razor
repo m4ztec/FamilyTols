@@ -25,6 +25,7 @@
 
     <TemplateColumn Context="inventory">
         <a href="@($"inventory/edit/{inventory.Id}")">Edit</a> |
+        <button class="btn btn-sm btn-primary" @onclick='() => Navigation.NavigateTo($"/inventory/{inventory.Id}/products")'>Products</button> |
         <button @onclick="(()=>DeleteInv(inventory.Id))">Delete</button>
     </TemplateColumn>
 </QuickGrid>
@@ -58,11 +59,8 @@
         var deletedResponse = await http.DeleteAsync($"/api/Inventory/{id}");
         if(deletedResponse.IsSuccessStatusCode)
         {
-            var tmp = await http.GetFromJsonAsync<IEnumerable<InventoryMembers>>($"/api/InventoryMembers/users/{userId}") ?? [];
-            var tmp2 = await http.PostAsJsonAsync("/api/Inventory/Bulk/get", tmp.Select(a => a.InventoryId).ToArray());
-            var tmp3 = await tmp2.Content.ReadFromJsonAsync<IEnumerable<Inventory>>();
-
-            userInvs = tmp3?.AsQueryable();
+            var hi = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
+            userInvs = hi?.AsQueryable();
             StateHasChanged();
         }
     }

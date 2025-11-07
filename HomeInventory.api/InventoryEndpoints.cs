@@ -119,6 +119,24 @@ public static class InventoryEndpoints
                 });
         })
         .WithName("AddInventoryProduct");
+
+        group.MapDelete("/{inventoryId:guid}/products/{productName}", async (Guid inventoryId, string productName, HomeInventoryapiContext db) =>
+        {
+            var inventoryExists = await db.Inventory.AnyAsync(i => i.Id == inventoryId);
+            if (!inventoryExists)
+                return Results.NotFound($"Inventory {inventoryId} not found.");
+
+            var product = await db.Product.FirstOrDefaultAsync(p => p.Name == productName);
+            if (product == null)
+                return Results.NotFound($"Product '{productName}' not found.");
+
+            var affected = await db.InventoryProducts
+                .Where(ip => ip.InventoryId == inventoryId && ip.ProductId == product.Id)
+                .ExecuteDeleteAsync();
+
+            return affected == 1 ? Results.Ok() : Results.NotFound();
+        })
+        .WithName("RemoveInventoryProduct");
     }
 
     public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
