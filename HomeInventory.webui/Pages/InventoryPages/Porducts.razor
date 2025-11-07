@@ -1,6 +1,7 @@
 ﻿@page "/inventory/{inventoryId}/products"
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using HomeInventory.shared.Models
+@using System.Text.Json
 
 @inject HttpClient http
 @inject JsUtills JsUtills
@@ -10,9 +11,26 @@
 <h3>Porducts</h3>
 <div class="mb-3">
     <button class="btn btn-primary" @onclick="AddNewRow">Add product</button>
+    <div class="d-inline-flex align-items-center ms-2">
+        <button class="btn btn-danger" @onclick="OpenBulkRemoveConfirm" disabled="@(selectedProductIds.Count == 0 || isRemoving)">
+            @if (isRemoving)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            }
+            Remove selected products (@selectedProductIds.Count)
+        </button>
+    </div>
 </div>
 
 <QuickGrid Class="table" Items="products">
+    <TemplateColumn Title="" Context="context">
+        <HeaderTemplate>
+            <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAllHeader" checked="@IsAllSelected" />
+        </HeaderTemplate>
+        <ChildContent Context="context">
+            <input type="checkbox" @onchange="(e) => ToggleSelection(e, context)" checked="@selectedProductIds.Contains(context.ProductId)" />
+        </ChildContent>
+    </TemplateColumn>
     <PropertyColumn Property="product => product.ProductName" />
     <TemplateColumn Title="Price" Context="product">
         @($"{product.ProductPrice:0.00} €")
@@ -99,6 +117,23 @@
     </div>
 </dialog>
 
+<dialog @ref="bulkConfirmDialog">
+    <h4>Confirm removal</h4>
+    <div class="mb-3">Are you sure you want to remove <strong>@selectedProductIds.Count</strong> selected product(s) from this inventory?</div>
+    @if (!string.IsNullOrEmpty(bulkErrorMessage))
+    {
+        <div class="alert alert-danger">@bulkErrorMessage</div>
+    }
+    @if (!string.IsNullOrEmpty(bulkSuccessMessage))
+    {
+        <div class="alert alert-success">@bulkSuccessMessage</div>
+    }
+    <div class="d-flex">
+        <button class="btn btn-danger me-2" @onclick="ConfirmBulkRemove">Remove</button>
+        <button class="btn btn-secondary" @onclick="() => JsUtills.CloseDialog(bulkConfirmDialog)">Cancel</button>
+    </div>
+</dialog>
+
 @code {
     [Parameter]
     public required string inventoryId { get; set; }
@@ -114,6 +149,11 @@
     private bool isNewProduct = false;
     private string errorMessage = string.Empty;
     private Product newProduct = new Product { Id = Guid.NewGuid(), Name = string.Empty, Description = string.Empty, SupposedPrice = 0 };
+    private HashSet<Guid> selectedProductIds = new();
+    private bool isRemoving = false;
+    private ElementReference bulkConfirmDialog;
+    private string bulkErrorMessage = string.Empty;
+    private string bulkSuccessMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,6 +246,84 @@
         }
     }
 
+    private void ToggleSelection(ChangeEventArgs e, InventoryProductDto product)
+    {
+        var isChecked = false;
+        if (e.Value is bool b)
+            isChecked = b;
+        else if (e.Value is string s && bool.TryParse(s, out var parsed))
+            isChecked = parsed;
+
+        if (isChecked)
+            selectedProductIds.Add(product.ProductId);
+        else
+            selectedProductIds.Remove(product.ProductId);
+    }
+
+    // Removed per-item sequential bulk delete in favor of bulk endpoint usage via ConfirmBulkRemove
+
+    private bool IsAllSelected => products is not null && selectedProductIds.Count > 0 && products.Count() == selectedProductIds.Count;
+
+    private void ToggleSelectAllHeader(ChangeEventArgs e)
+    {
+        var isChecked = false;
+        if (e.Value is bool b)
+            isChecked = b;
+        else if (e.Value is string s && bool.TryParse(s, out var parsed))
+            isChecked = parsed;
+
+        if (isChecked)
+        {
+            selectedProductIds.Clear();
+            if (products is not null)
+            {
+                foreach (var p in products)
+                    selectedProductIds.Add(p.ProductId);
+            }
+        }
+        else
+        {
+            selectedProductIds.Clear();
+        }
+    }
+
+    private async Task OpenBulkRemoveConfirm()
+    {
+        bulkErrorMessage = string.Empty;
+        bulkSuccessMessage = string.Empty;
+        await JsUtills.OpenDialog(bulkConfirmDialog);
+    }
+
+    private async Task ConfirmBulkRemove()
+    {
+        await JsUtills.CloseDialog(bulkConfirmDialog);
+        if (selectedProductIds.Count == 0)
+            return;
+
+        isRemoving = true;
+        try
+        {
+            var ids = selectedProductIds.ToArray();
+            var resp = await http.PostAsJsonAsync($"/api/inventory/{inventoryId}/products/bulk-delete", ids);
+            if (resp.IsSuccessStatusCode)
+            {
+                var result = await resp.Content.ReadFromJsonAsync<JsonElement?>();
+                bulkSuccessMessage = "Removed " + (result?.GetProperty("deletedCount").GetInt32().ToString() ?? "items") + " products.";
+                await GetPorducts();
+                selectedProductIds.Clear();
+            }
+            else
+            {
+                var txt = await resp.Content.ReadAsStringAsync();
+                bulkErrorMessage = $"Bulk remove failed: {resp.StatusCode} - {txt}";
+            }
+        }
+        finally
+        {
+            isRemoving = false;
+        }
+    }
+
     private async Task OnProductSelected(ChangeEventArgs e)
     {
         var name = e.Value?.ToString() ?? string.Empty;
@@ -271,15 +389,24 @@
         if (!confirmed)
             return;
 
-        var resp = await http.DeleteAsync($"/api/inventory/{inventoryId}/products/{Uri.EscapeDataString(product.ProductName)}");
-        if (resp.IsSuccessStatusCode)
+        isRemoving = true;
+        try
         {
-            await GetPorducts();
+            var ids = new Guid[] { product.ProductId };
+            var resp = await http.PostAsJsonAsync($"/api/inventory/{inventoryId}/products/bulk-delete", ids);
+            if (resp.IsSuccessStatusCode)
+            {
+                await GetPorducts();
+            }
+            else
+            {
+                var txt = await resp.Content.ReadAsStringAsync();
+                errorMessage = $"Remove failed: {resp.StatusCode} - {txt}";
+            }
         }
-        else
+        finally
         {
-            var txt = await resp.Content.ReadAsStringAsync();
-            errorMessage = $"Remove failed: {resp.StatusCode} - {txt}";
+            isRemoving = false;
         }
     }
 }

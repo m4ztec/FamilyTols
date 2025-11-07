@@ -69,6 +69,7 @@ public static class InventoryEndpoints
                .Where(ip => ip.InventoryId == inventoryId)
                .Select(ip => new InventoryProductDto
                {
+                   ProductId = ip.ProductId,
                    ProductName = ip.Product.Name,
                    ProductPrice = ip.Product.SupposedPrice,
                    ExistingAmount = ip.ExistingAmont,
@@ -137,6 +138,45 @@ public static class InventoryEndpoints
             return affected == 1 ? Results.Ok() : Results.NotFound();
         })
         .WithName("RemoveInventoryProduct");
+
+        group.MapPost("/{inventoryId:guid}/products/bulk-delete", async (Guid inventoryId, Guid[] productIds, HomeInventoryapiContext db) =>
+        {
+            if (productIds is null || productIds.Length == 0)
+                return Results.BadRequest("No product ids provided.");
+
+            var inventoryExists = await db.Inventory.AnyAsync(i => i.Id == inventoryId);
+            if (!inventoryExists)
+                return Results.NotFound($"Inventory {inventoryId} not found.");
+            // Find which of the provided ids exist
+            var products = await db.Product.Where(p => productIds.Contains(p.Id)).ToListAsync();
+            var foundIds = products.Select(p => p.Id).ToHashSet();
+            var missing = productIds.Where(id => !foundIds.Contains(id)).ToArray();
+
+            // Find which of the found products are actually linked
+            var linked = await db.InventoryProducts
+                .Where(ip => ip.InventoryId == inventoryId && productIds.Contains(ip.ProductId))
+                .Select(ip => ip.ProductId)
+                .ToArrayAsync();
+
+            var notLinkedIds = productIds.Except(linked).ToArray();
+
+            // Delete the linked inventory products
+            var deleted = await db.InventoryProducts
+                .Where(ip => ip.InventoryId == inventoryId && productIds.Contains(ip.ProductId))
+                .ExecuteDeleteAsync();
+
+            // Map ids back to names for reporting
+            var idToName = products.ToDictionary(p => p.Id, p => p.Name);
+            var notLinkedNames = notLinkedIds.Where(id => idToName.ContainsKey(id)).Select(id => idToName[id]).ToArray();
+
+            return Results.Ok(new
+            {
+                deletedCount = deleted,
+                missing = missing,
+                notLinked = notLinkedNames
+            });
+        })
+        .WithName("BulkRemoveInventoryProducts");
     }
 
     public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
