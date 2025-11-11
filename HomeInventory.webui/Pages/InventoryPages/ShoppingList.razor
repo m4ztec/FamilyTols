@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using HomeInventory.shared.Models
 @inject HttpClient http
+@inject NavigationManager Navigation
 @attribute [Authorize]
 
 <h3>Shopping List</h3>
@@ -25,7 +26,27 @@ else if (products?.Any() != true)
 }
 else
 {
+    <div class="mb-3 d-flex gap-2 align-items-start">
+        <button class="btn btn-success" @onclick="BuySelected" disabled="@(selectedProductIds.Count == 0 || isBuying)">
+            @if (isBuying)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            }
+            Buy Selected (@selectedProductIds.Count)
+        </button>
+        <button class="btn btn-secondary" @onclick="BackToProducts">
+            Back to Products
+        </button>
+    </div>
     <QuickGrid Class="table" Items="products">
+        <TemplateColumn Title="" Context="context">
+            <HeaderTemplate>
+                <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAllHeader" checked="@IsAllSelected" />
+            </HeaderTemplate>
+            <ChildContent Context="context">
+                <input type="checkbox" @onchange="(e) => ToggleSelection(e, context)" checked="@selectedProductIds.Contains(context.ProductId)" />
+            </ChildContent>
+        </TemplateColumn>
         <PropertyColumn Property="product => product.ProductName" Title="Product" />
         <TemplateColumn Title="Price" Context="product">
             @($"{product.ProductPrice:0.00} €")
@@ -37,6 +58,9 @@ else
         </TemplateColumn>
         <TemplateColumn Title="Total Cost" Context="product">
             @($"{(product.DesiredAmount - product.ExistingAmount) * product.ProductPrice:0.00} €")
+        </TemplateColumn>
+        <TemplateColumn Title="Actions" Context="product">
+            <button class="btn btn-sm btn-success" @onclick="() => BuyProduct(product)">Bought</button>
         </TemplateColumn>
     </QuickGrid>
 
@@ -55,6 +79,8 @@ else
 
     private IQueryable<InventoryProductDto>? products;
     private bool isLoading = true;
+    private bool isBuying = false;
+    private HashSet<Guid> selectedProductIds = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -79,5 +105,104 @@ else
         {
             isLoading = false;
         }
+    }
+
+    private void ToggleSelection(ChangeEventArgs e, InventoryProductDto product)
+    {
+        var isChecked = false;
+        if (e.Value is bool b)
+            isChecked = b;
+        else if (e.Value is string s && bool.TryParse(s, out var parsed))
+            isChecked = parsed;
+
+        if (isChecked)
+            selectedProductIds.Add(product.ProductId);
+        else
+            selectedProductIds.Remove(product.ProductId);
+    }
+
+    private bool IsAllSelected => products is not null && selectedProductIds.Count > 0 && products.Count() == selectedProductIds.Count;
+
+    private void ToggleSelectAllHeader(ChangeEventArgs e)
+    {
+        var isChecked = false;
+        if (e.Value is bool b)
+            isChecked = b;
+        else if (e.Value is string s && bool.TryParse(s, out var parsed))
+            isChecked = parsed;
+
+        if (isChecked)
+        {
+            selectedProductIds.Clear();
+            if (products is not null)
+            {
+                foreach (var p in products)
+                    selectedProductIds.Add(p.ProductId);
+            }
+        }
+        else
+        {
+            selectedProductIds.Clear();
+        }
+    }
+
+    private async Task BuyProduct(InventoryProductDto product)
+    {
+        isBuying = true;
+        try
+        {
+            var updated = new InventoryProductDto
+            {
+                ProductId = product.ProductId,
+                ProductName = product.ProductName,
+                ProductPrice = product.ProductPrice,
+                ExistingAmount = product.DesiredAmount,
+                DesiredAmount = product.DesiredAmount
+            };
+            var resp = await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{product.ProductId}", updated);
+            if (resp.IsSuccessStatusCode)
+            {
+                await LoadProducts();
+                selectedProductIds.Remove(product.ProductId);
+            }
+        }
+        finally
+        {
+            isBuying = false;
+        }
+    }
+
+    private async Task BuySelected()
+    {
+        if (products is null || selectedProductIds.Count == 0)
+            return;
+        isBuying = true;
+        try
+        {
+            var toBuy = products.Where(p => selectedProductIds.Contains(p.ProductId)).ToList();
+            foreach (var product in toBuy)
+            {
+                var updated = new InventoryProductDto
+                {
+                    ProductId = product.ProductId,
+                    ProductName = product.ProductName,
+                    ProductPrice = product.ProductPrice,
+                    ExistingAmount = product.DesiredAmount,
+                    DesiredAmount = product.DesiredAmount
+                };
+                await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{product.ProductId}", updated);
+            }
+            await LoadProducts();
+            selectedProductIds.Clear();
+        }
+        finally
+        {
+            isBuying = false;
+        }
+    }
+
+    private void BackToProducts()
+    {
+        Navigation.NavigateTo($"/inventory/{inventoryId}/products");
     }
 }

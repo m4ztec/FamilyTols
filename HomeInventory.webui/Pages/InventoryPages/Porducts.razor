@@ -6,6 +6,7 @@
 @inject HttpClient http
 @inject JsUtills JsUtills
 @inject IJSRuntime jsRuntime
+@inject NavigationManager Navigation
 @attribute [Authorize]
 
 <h3>Porducts</h3>
@@ -23,6 +24,10 @@
     <a href="@($"/inventory/{inventoryId}/shopping-list")" class="btn btn-info">
         View Shopping List
     </a>
+
+    <button class="btn btn-secondary" @onclick="BackToInventory">
+        Back to Inventory
+    </button>
 </div>
 
 <QuickGrid Class="table" Items="products">
@@ -424,5 +429,10 @@
         {
             isRemoving = false;
         }
+    }
+
+    private void BackToInventory()
+    {
+        Navigation.NavigateTo("/inventory");
     }
 }
