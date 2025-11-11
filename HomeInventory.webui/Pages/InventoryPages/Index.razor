@@ -36,9 +36,9 @@ else
     <PropertyColumn Property="inventory => inventory.LastModifiedAt" />
 
     <TemplateColumn Context="inventory">
-        <a href="@($"inventory/edit/{inventory.Id}")">Edit</a> |
-        <button class="btn btn-sm btn-primary" @onclick='() => Navigation.NavigateTo($"/inventory/{inventory.Id}/products")'>Products</button> |
-        <button @onclick="(()=>DeleteInv(inventory.Id))">Delete</button>
+        <a href="@($"inventory/edit/{inventory.Id}")" class="btn btn-sm btn-primary">Edit</a>
+        <button class="btn btn-sm btn-primary" @onclick='() => Navigation.NavigateTo($"/inventory/{inventory.Id}/products")'>Products</button>
+        <button class="btn btn-sm btn-info" @onclick='() => Navigation.NavigateTo($"/inventory/{inventory.Id}/shopping-list")'>Shopping List</button>
     </TemplateColumn>
 </QuickGrid>
 }
@@ -73,16 +73,5 @@ else
     private void CreateInv()
     {
         Navigation.NavigateTo($"/inventory/create/");
-    }
-    
-    private async Task DeleteInv(Guid id)
-    {
-        var deletedResponse = await http.DeleteAsync($"/api/Inventory/{id}");
-        if(deletedResponse.IsSuccessStatusCode)
-        {
-            var hi = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
-            userInvs = hi?.AsQueryable();
-            StateHasChanged();
-        }
     }
 }

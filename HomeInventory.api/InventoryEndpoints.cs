@@ -121,6 +121,38 @@ public static class InventoryEndpoints
         })
         .WithName("AddInventoryProduct");
 
+        group.MapPut("/{inventoryId:guid}/products/{productId:guid}", async (Guid inventoryId, Guid productId, InventoryProductDto dto, HomeInventoryapiContext db) =>
+        {
+            var inventoryExists = await db.Inventory.AnyAsync(i => i.Id == inventoryId);
+            if (!inventoryExists)
+                return Results.NotFound($"Inventory {inventoryId} not found.");
+
+            var product = await db.Product.FirstOrDefaultAsync(p => p.Id == productId);
+            if (product == null)
+                return Results.NotFound($"Product {productId} not found.");
+
+            var inventoryProduct = await db.InventoryProducts.FirstOrDefaultAsync(ip =>
+                ip.InventoryId == inventoryId && ip.ProductId == productId);
+            if (inventoryProduct == null)
+                return Results.NotFound($"Product {productId} is not in this inventory.");
+
+            inventoryProduct.ExistingAmont = dto.ExistingAmount;
+            inventoryProduct.DesiredAmont = dto.DesiredAmount;
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new
+            {
+                InventoryId = inventoryId,
+                product.Id,
+                product.Name,
+                product.SupposedPrice,
+                dto.ExistingAmount,
+                dto.DesiredAmount
+            });
+        })
+        .WithName("UpdateInventoryProduct");
+
         group.MapDelete("/{inventoryId:guid}/products/{productName}", async (Guid inventoryId, string productName, HomeInventoryapiContext db) =>
         {
             var inventoryExists = await db.Inventory.AnyAsync(i => i.Id == inventoryId);

@@ -9,17 +9,20 @@
 @attribute [Authorize]
 
 <h3>Porducts</h3>
-<div class="mb-3">
+<div class="mb-3 d-flex gap-2 align-items-start">
     <button class="btn btn-primary" @onclick="AddNewRow">Add product</button>
-    <div class="d-inline-flex align-items-center ms-2">
-        <button class="btn btn-danger" @onclick="OpenBulkRemoveConfirm" disabled="@(selectedProductIds.Count == 0 || isRemoving)">
-            @if (isRemoving)
-            {
-                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-            }
-            Remove selected products (@selectedProductIds.Count)
-        </button>
-    </div>
+    
+    <button class="btn btn-danger" @onclick="OpenBulkRemoveConfirm" disabled="@(selectedProductIds.Count == 0 || isRemoving)">
+        @if (isRemoving)
+        {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        }
+        Remove selected products (@selectedProductIds.Count)
+    </button>
+
+    <a href="@($"/inventory/{inventoryId}/shopping-list")" class="btn btn-info">
+        View Shopping List
+    </a>
 </div>
 
 <QuickGrid Class="table" Items="products">
@@ -179,6 +182,7 @@
         // copy the product so edits don't modify the list directly
         selectedProduct = new InventoryProductDto
         {
+            ProductId = product.ProductId,
             ProductName = product.ProductName,
             ProductPrice = product.ProductPrice,
             ExistingAmount = product.ExistingAmount,
@@ -221,11 +225,23 @@
         }
         else
         {
-            // editing inventory product isn't implemented server-side yet.
-            // close dialog for now and refresh.
-            selectedProduct = null;
-            await JsUtills.CloseDialog(productDialog);
-            await GetPorducts();
+            // editing inventory product - call the PUT endpoint
+            var response = await http.PutAsJsonAsync(
+                $"/api/Inventory/{inventoryId}/products/{selectedProduct.ProductId}", 
+                selectedProduct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // refresh
+                await GetPorducts();
+                selectedProduct = null;
+                await JsUtills.CloseDialog(productDialog);
+            }
+            else
+            {
+                var text = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Error: {response.StatusCode} - {text}";
+            }
         }
     }
 

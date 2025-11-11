@@ -1,0 +1,83 @@
+﻿@page "/inventory/{inventoryId}/shopping-list"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using HomeInventory.shared.Models
+@inject HttpClient http
+@attribute [Authorize]
+
+<h3>Shopping List</h3>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height:60vh">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-2">Loading products...</div>
+        </div>
+    </div>
+}
+else if (products?.Any() != true)
+{
+    <div class="alert alert-info">
+        All products have sufficient stock! No items needed for shopping.
+    </div>
+}
+else
+{
+    <QuickGrid Class="table" Items="products">
+        <PropertyColumn Property="product => product.ProductName" Title="Product" />
+        <TemplateColumn Title="Price" Context="product">
+            @($"{product.ProductPrice:0.00} €")
+        </TemplateColumn>
+        <PropertyColumn Property="product => product.ExistingAmount" Title="Current Stock" />
+        <PropertyColumn Property="product => product.DesiredAmount" Title="Desired Stock" />
+        <TemplateColumn Title="Need to Buy" Context="product">
+            @(product.DesiredAmount - product.ExistingAmount)
+        </TemplateColumn>
+        <TemplateColumn Title="Total Cost" Context="product">
+            @($"{(product.DesiredAmount - product.ExistingAmount) * product.ProductPrice:0.00} €")
+        </TemplateColumn>
+    </QuickGrid>
+
+    <div class="mt-3">
+        <strong>Total Shopping Cost: </strong>
+        @{
+            var totalCost = products.Sum(p => (p.DesiredAmount - p.ExistingAmount) * p.ProductPrice);
+        }
+        @($"{totalCost:0.00} €")
+    </div>
+}
+
+@code {
+    [Parameter]
+    public required string inventoryId { get; set; }
+
+    private IQueryable<InventoryProductDto>? products;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        isLoading = true;
+        try
+        {
+            // Get all products for the inventory
+            var allProducts = await http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/Inventory/{inventoryId}/Products");
+            
+            // Filter locally to show only products where desired > existing
+            products = allProducts?
+                .Where(p => p.DesiredAmount > p.ExistingAmount)
+                .OrderByDescending(p => p.DesiredAmount - p.ExistingAmount)
+                .AsQueryable();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

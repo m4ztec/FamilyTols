@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @inject HttpClient http
 @inject NavigationManager Navigation
+@inject IJSRuntime jsRuntime
 @attribute [Authorize]
 
 @if (inv is null)
@@ -23,8 +24,16 @@ else
         <InputText @bind-Value="inv.Description" class="form-control" />
     </div>
 
-    <button type="submit" class="btn btn-primary" @onclick="EditInventory">Save</button>
-    <button type="reset" class="btn btn-primary"  href="/inventory">Cancel</button>
+    <div class="mb-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary" @onclick="EditInventory">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+        <button type="button" class="btn btn-danger" @onclick="DeleteInventory">Delete Inventory</button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
 }
 
 @code {
@@ -36,6 +45,7 @@ else
     private Task<AuthenticationState>? authenticationState { get; set; }
 
     Inventory? inv;
+    private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -44,10 +54,42 @@ else
 
     private async Task EditInventory()
     {
+        if (inv is null)
+            return;
+
         var editedResponse = await http.PutAsJsonAsync("/api/Inventory/", inv);
         if (editedResponse.IsSuccessStatusCode)
         {
             Navigation.NavigateTo("/inventory");
+        }
+        else
+        {
+            errorMessage = "Failed to save inventory changes.";
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/inventory");
+    }
+
+    private async Task DeleteInventory()
+    {
+        if (inv is null)
+            return;
+
+        var confirmed = await jsRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{inv.Name}'? This action cannot be undone.");
+        if (!confirmed)
+            return;
+
+        var deleteResponse = await http.DeleteAsync($"/api/Inventory/{inv.Id}");
+        if (deleteResponse.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/inventory");
+        }
+        else
+        {
+            errorMessage = "Failed to delete inventory.";
         }
     }
 }
