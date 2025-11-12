@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @using HomeInventory.shared.Models
 @inject HttpClient http
+@inject IAccessTokenProvider TokenProvider
 @inject NavigationManager Navigation
 @attribute [Authorize]
 
@@ -30,7 +31,12 @@ else
     <PropertyColumn Property="inventory => inventory.Name" />
     <PropertyColumn Property="inventory => inventory.Description" />
     <TemplateColumn Title="Owner" Context="inventory">
-        @((inventory.Owner == userId && !string.IsNullOrEmpty(userName)) ? userName : inventory.Owner)
+        @(
+            // prefer the friendly name for the current user, then any fetched owner name, otherwise fall back to raw owner id
+            (inventory.Owner == userId && !string.IsNullOrEmpty(userName))
+            ? userName
+            : (ownerNames.TryGetValue(inventory.Owner, out var oname) ? oname : inventory.Owner)
+        )
     </TemplateColumn>
     <PropertyColumn Property="inventory => inventory.CreatedAt" />
     <PropertyColumn Property="inventory => inventory.LastModifiedAt" />
@@ -49,6 +55,7 @@ else
     IQueryable<Inventory>? userInvs;
     string userId = "";
     string userName = "";
+    private Dictionary<string, string> ownerNames = new();
     bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
@@ -69,11 +76,58 @@ else
         {
             var hi = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
             userInvs = hi?.AsQueryable();
+
+            // fetch owner display names for inventories (skips empty/null owner ids)
+            if (userInvs is not null)
+            {
+                var ownerIds = userInvs.Select(i => i.Owner).Where(o => !string.IsNullOrEmpty(o)).Distinct().ToList();
+                var toFetch = ownerIds.Where(id => !string.IsNullOrEmpty(id) && !ownerNames.ContainsKey(id)).ToList();
+
+                // try to get an access token to forward to the backend profile endpoint
+                var tokenResult = await TokenProvider.RequestAccessToken();
+                string? accessToken = null;
+                if (tokenResult.TryGetToken(out var t))
+                    accessToken = t.Value;
+
+                var tasks = toFetch.Select(async id =>
+                {
+                    try
+                    {
+                        if (string.IsNullOrEmpty(accessToken))
+                        {
+                            // no token available - skip (owner will fall back to raw id)
+                            return;
+                        }
+
+                        var req = new HttpRequestMessage(HttpMethod.Get, $"/api/users/{id}/profile");
+                        req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                        var resp = await http.SendAsync(req);
+                        if (!resp.IsSuccessStatusCode)
+                            return;
+
+                        var prof = await resp.Content.ReadFromJsonAsync<UserProfile>();
+                        if (prof is not null)
+                            ownerNames[id] = string.IsNullOrEmpty(prof.DisplayName) ? id : prof.DisplayName;
+                    }
+                    catch
+                    {
+                        // ignore failures and leave id as fallback
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+            }
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private class UserProfile
+    {
+        public string? UserId { get; set; }
+        public string? DisplayName { get; set; }
     }
 
     private void CreateInv()

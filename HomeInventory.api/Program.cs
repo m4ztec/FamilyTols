@@ -7,14 +7,22 @@ using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var keycloakSection = builder.Configuration.GetSection("Keycloak");
+var keycloakAuthority = keycloakSection["Authority"] ?? string.Empty;
+var keycloakAudience = keycloakSection["Audience"] ?? string.Empty;
+var requireHttps = true;
+if (bool.TryParse(keycloakSection["RequireHttpsMetadata"], out var parsed))
+    requireHttps = parsed;
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(options =>
 {
-    options.Authority = "https://auth.m4ztec.com/realms/BlazorTest1";
-    options.Audience = "web-api";
+    options.Authority = keycloakAuthority;
+    options.Audience = keycloakAudience;
+    options.RequireHttpsMetadata = requireHttps;
     options.TokenValidationParameters = new()
     {
        ValidateAudience = true,
@@ -35,6 +43,10 @@ builder.Services.AddCors();
 builder.Services.AddOpenApi();
 
 builder.Services.AddEndpointsApiExplorer();
+
+// Register identity provider client (optional configuration via IdentityProvider section)
+builder.Services.AddHttpClient<HomeInventory.api.Services.IIdentityProviderClient, HomeInventory.api.Services.IdentityProviderClient>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -86,6 +98,7 @@ app.UseAuthorization();
 app.MapInventoryEndpoints();
 app.MapInventoryMembersEndpoints();
 app.MapProductEndpoints();
+app.MapUserEndpoints();
 
 app.MapGet("/hi", () =>
 {

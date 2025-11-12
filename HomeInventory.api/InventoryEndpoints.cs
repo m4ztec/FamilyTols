@@ -211,6 +211,8 @@ public static class InventoryEndpoints
         .WithName("BulkRemoveInventoryProducts");
     }
 
+    
+
     public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/api/users").WithTags(nameof(InventoryMembers));
