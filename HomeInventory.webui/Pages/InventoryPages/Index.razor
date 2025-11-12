@@ -10,8 +10,6 @@
 
 <h1>Index</h1>
 
-<h3>@userId</h3>
-
 <p>
     <button @onclick="CreateInv">Create inventory</button>
 </p>
@@ -31,7 +29,9 @@ else
     <QuickGrid Class="table" Items="userInvs">
     <PropertyColumn Property="inventory => inventory.Name" />
     <PropertyColumn Property="inventory => inventory.Description" />
-    <PropertyColumn Property="inventory => inventory.Owner" />
+    <TemplateColumn Title="Owner" Context="inventory">
+        @((inventory.Owner == userId && !string.IsNullOrEmpty(userName)) ? userName : inventory.Owner)
+    </TemplateColumn>
     <PropertyColumn Property="inventory => inventory.CreatedAt" />
     <PropertyColumn Property="inventory => inventory.LastModifiedAt" />
 
@@ -48,6 +48,7 @@ else
     private Task<AuthenticationState>? authenticationState { get; set; }
     IQueryable<Inventory>? userInvs;
     string userId = "";
+    string userName = "";
     bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
@@ -58,6 +59,11 @@ else
             var authState = await authenticationState;
             var user = authState?.User;
             userId = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value ?? "";
+            // try to get a friendly name for the current user from common claim types
+            userName = user?.Claims.FirstOrDefault(a => a.Type == "name")?.Value
+                ?? user?.Claims.FirstOrDefault(a => a.Type == "preferred_username")?.Value
+                ?? user?.Claims.FirstOrDefault(a => a.Type == "email")?.Value
+                ?? string.Empty;
         }
         try
         {
