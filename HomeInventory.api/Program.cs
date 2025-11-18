@@ -2,8 +2,6 @@
 using HomeInventory.api.Dbcontext;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
-using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,36 +30,36 @@ builder.Services.AddDbContext<HomeInventoryapiContext>(options =>
 
 builder.Services.AddCors();
 
-builder.Services.AddOpenApi();
 
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSwaggerGen(options =>
-{
-    options.AddSecurityDefinition("Bearer", new()
-    {
-        In = ParameterLocation.Header,
-        Description = "Please provide a valid token",
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        BearerFormat = "JWT",
-        Scheme = "Bearer"
-    });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer",
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
+// builder.Services.AddOpenApi();
+// builder.Services.AddSwaggerGen(options =>
+// {
+//     options.AddSecurityDefinition("Bearer", new()
+//     {
+//         In = ParameterLocation.Header,
+//         Description = "Please provide a valid token",
+//         Name = "Authorization",
+//         Type = SecuritySchemeType.Http,
+//         BearerFormat = "JWT",
+//         Scheme = "Bearer"
+//     });
+//     options.AddSecurityRequirement(new OpenApiSecurityRequirement
+//     {
+//         {
+//             new OpenApiSecurityScheme
+//             {
+//                 Reference = new OpenApiReference
+//                 {
+//                     Type = ReferenceType.SecurityScheme,
+//                     Id = "Bearer",
+//                 }
+//             },
+//             Array.Empty<string>()
+//         }
+//     });
+// });
 
 var app = builder.Build();
 
@@ -72,13 +70,13 @@ app.UseCors(x => x
                 .SetIsOriginAllowed(origin => true) // allow any origin
                 .AllowCredentials()); // allow credentials
 
-app.MapOpenApi();
+// app.MapOpenApi();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// if (app.Environment.IsDevelopment())
+// {
+//     app.UseSwagger();
+//     app.UseSwaggerUI();
+// }
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -92,7 +90,6 @@ app.MapGet("/hi", () =>
     return TypedResults.Ok("authorized BABY!!!");
 })
 .WithName("test_01")
-.WithOpenApi()
 .RequireAuthorization();
 
 app.Run();

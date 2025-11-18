@@ -10,7 +10,7 @@ public static class InventoryEndpoints
     public static void MapInventoryEndpoints(this IEndpointRouteBuilder routes)
     {
         var prefix = "/api/inventory";
-        var group = routes.MapGroup(prefix).WithTags(nameof(Inventory)).WithOpenApi();
+        var group = routes.MapGroup(prefix).WithTags(nameof(Inventory));
 
         group.MapGet("/{id}", async Task<Results<Ok<Inventory>, NotFound>> (Guid id, HomeInventoryapiContext db) =>
         {
@@ -229,7 +229,7 @@ public static class InventoryEndpoints
 
     public static void MapProductEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/Product").WithTags(nameof(Product)).WithOpenApi();
+        var group = routes.MapGroup("/api/Product").WithTags(nameof(Product));
 
         group.MapGet("/", async (HomeInventoryapiContext db) =>
         {
