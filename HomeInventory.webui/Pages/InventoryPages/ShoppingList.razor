@@ -5,7 +5,22 @@
 @inject NavigationManager Navigation
 @attribute [Authorize]
 
-<h3>Shopping List</h3>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-secondary btn-sm" @onclick="BackToProducts">Back to Products</button>
+        <h3 class="mb-0">Shopping List</h3>
+    </div>
+
+    <div class="mb-3 d-flex gap-2 align-items-start justify-content-end">
+        <button class="btn btn-success" @onclick="BuySelected" disabled="@(selectedProductIds.Count == 0 || isBuying)">
+            @if (isBuying)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            }
+            Buy Selected (@selectedProductIds.Count)
+        </button>
+    </div>
+</div>
 
 @if (isLoading)
 {
@@ -26,18 +41,6 @@ else if (products?.Any() != true)
 }
 else
 {
-    <div class="mb-3 d-flex gap-2 align-items-start">
-        <button class="btn btn-success" @onclick="BuySelected" disabled="@(selectedProductIds.Count == 0 || isBuying)">
-            @if (isBuying)
-            {
-                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-            }
-            Buy Selected (@selectedProductIds.Count)
-        </button>
-        <button class="btn btn-secondary" @onclick="BackToProducts">
-            Back to Products
-        </button>
-    </div>
     <QuickGrid Class="table" Items="products">
         <TemplateColumn Title="" Context="context">
             <HeaderTemplate>

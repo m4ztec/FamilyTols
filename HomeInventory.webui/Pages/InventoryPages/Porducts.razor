@@ -9,25 +9,27 @@
 @inject NavigationManager Navigation
 @attribute [Authorize]
 
-<h3>Porducts</h3>
-<div class="mb-3 d-flex gap-2 align-items-start">
-    <button class="btn btn-primary" @onclick="AddNewRow">Add product</button>
-    
-    <button class="btn btn-danger" @onclick="OpenBulkRemoveConfirm" disabled="@(selectedProductIds.Count == 0 || isRemoving)">
-        @if (isRemoving)
-        {
-            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-        }
-        Remove selected products (@selectedProductIds.Count)
-    </button>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-secondary btn-sm" @onclick="BackToInventory">Back to Inventory</button>
+        <h3 class="mb-0">Porducts</h3>
+    </div>
 
-    <a href="@($"/inventory/{inventoryId}/shopping-list")" class="btn btn-info">
-        View Shopping List
-    </a>
+    <div class="d-flex gap-2 align-items-start">
+        <button class="btn btn-primary" @onclick="AddNewRow">Add product</button>
+        
+        <button class="btn btn-danger" @onclick="OpenBulkRemoveConfirm" disabled="@(selectedProductIds.Count == 0 || isRemoving)">
+            @if (isRemoving)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            }
+            Remove selected products (@selectedProductIds.Count)
+        </button>
 
-    <button class="btn btn-secondary" @onclick="BackToInventory">
-        Back to Inventory
-    </button>
+        <a href="@($"/inventory/{inventoryId}/shopping-list")" class="btn btn-info">
+            View Shopping List
+        </a>
+    </div>
 </div>
 
 <QuickGrid Class="table" Items="products">
