@@ -10,7 +10,7 @@ public static class InventoryEndpoints
     public static void MapInventoryEndpoints(this IEndpointRouteBuilder routes)
     {
         var prefix = "/api/inventory";
-        var group = routes.MapGroup(prefix).WithTags(nameof(Inventory));
+        var group = routes.MapGroup(prefix).WithTags(nameof(Inventory)).RequireAuthorization();
 
         group.MapGet("/{id}", async Task<Results<Ok<Inventory>, NotFound>> (Guid id, HomeInventoryapiContext db) =>
         {
@@ -211,11 +211,9 @@ public static class InventoryEndpoints
         .WithName("BulkRemoveInventoryProducts");
     }
 
-    
-
     public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/users").WithTags(nameof(InventoryMembers));
+        var group = routes.MapGroup("/api/users").WithTags(nameof(InventoryMembers)).RequireAuthorization();
 
         group.MapGet("/{userid}/inventories", async (string userid, HomeInventoryapiContext db) =>
         {
@@ -231,7 +229,7 @@ public static class InventoryEndpoints
 
     public static void MapProductEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/Product").WithTags(nameof(Product));
+        var group = routes.MapGroup("/api/Product").WithTags(nameof(Product)).RequireAuthorization();
 
         group.MapGet("/", async (HomeInventoryapiContext db) =>
         {
