@@ -2,9 +2,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using HomeInventory.shared.Models
 @using System.Text.Json
-
 @inject HttpClient http
-@inject JsUtills JsUtills
 @inject IJSRuntime jsRuntime
 @inject NavigationManager Navigation
 @attribute [Authorize]
@@ -140,7 +138,7 @@
     }
     <div class="d-flex">
         <button class="btn btn-danger me-2" @onclick="ConfirmBulkRemove">Remove</button>
-        <button class="btn btn-secondary" @onclick="() => JsUtills.CloseDialog(bulkConfirmDialog)">Cancel</button>
+        <button class="btn btn-secondary" @onclick="() => jsRuntime.CloseDialog(bulkConfirmDialog)">Cancel</button>
     </div>
 </dialog>
 
@@ -181,7 +179,7 @@
         selectedProduct = new InventoryProductDto();
         isNewProduct = true;
         errorMessage = string.Empty;
-        await JsUtills.OpenDialog(productDialog);
+        await jsRuntime.OpenDialog(productDialog);
     }
 
     private async Task EditInventoryProduct(InventoryProductDto product)
@@ -197,7 +195,7 @@
         };
         isNewProduct = false;
         errorMessage = string.Empty;
-        await JsUtills.OpenDialog(productDialog);
+        await jsRuntime.OpenDialog(productDialog);
     }
 
     private async Task SaveEdit()
@@ -222,7 +220,7 @@
                 await GetPorducts();
                 selectedProduct = null;
                 isNewProduct = false;
-                await JsUtills.CloseDialog(productDialog);
+                await jsRuntime.CloseDialog(productDialog);
             }
             else
             {
@@ -242,7 +240,7 @@
                 // refresh
                 await GetPorducts();
                 selectedProduct = null;
-                await JsUtills.CloseDialog(productDialog);
+                await jsRuntime.CloseDialog(productDialog);
             }
             else
             {
@@ -254,7 +252,7 @@
 
     private async Task CloseDialog()
     {
-        await JsUtills.CloseDialog(productDialog);
+        await jsRuntime.CloseDialog(productDialog);
     }
 
     private async Task LoadAvailableProducts()
@@ -314,12 +312,12 @@
     {
         bulkErrorMessage = string.Empty;
         bulkSuccessMessage = string.Empty;
-        await JsUtills.OpenDialog(bulkConfirmDialog);
+        await jsRuntime.OpenDialog(bulkConfirmDialog);
     }
 
     private async Task ConfirmBulkRemove()
     {
-        await JsUtills.CloseDialog(bulkConfirmDialog);
+        await jsRuntime.CloseDialog(bulkConfirmDialog);
         if (selectedProductIds.Count == 0)
             return;
 
@@ -365,7 +363,7 @@
     {
         // initialize new product with new id to match server expectations
         newProduct = new Product { Id = Guid.NewGuid(), Name = string.Empty, Description = string.Empty, SupposedPrice = 0 };
-        await JsUtills.OpenDialog(newProductDialog);
+        await jsRuntime.OpenDialog(newProductDialog);
     }
 
     private async Task SaveNewProduct()
@@ -388,7 +386,7 @@
                 selectedProduct.ProductPrice = newProduct.SupposedPrice;
             }
 
-            await JsUtills.CloseDialog(newProductDialog);
+            await jsRuntime.CloseDialog(newProductDialog);
         }
         else
         {
@@ -400,7 +398,7 @@
 
     private async Task CloseNewProductDialog()
     {
-        await JsUtills.CloseDialog(newProductDialog);
+        await jsRuntime.CloseDialog(newProductDialog);
     }
 
     private async Task RemoveInventoryProduct(InventoryProductDto product)
