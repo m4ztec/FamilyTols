@@ -13,8 +13,10 @@ GET {{HomeInventory.api_HostAddress}}/api/InventoryMembers/users/47c5699a-1541-4
 
 
 ###
-
 POST {{HomeInventory.api_HostAddress}}/api/Inventory/bulk/get
 Content-Type: application/json
 
 ["00c82d53-a807-4607-acee-3542a82b13f4", "adac4a1f-a38d-41cd-b5c0-1278e981fc96"]
+
+###
+GET {{HomeInventory.api_HostAddress}}/47c5699a-1541-4137-9ca6-7be07a91435a/profile 

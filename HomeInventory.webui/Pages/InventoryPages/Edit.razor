@@ -24,6 +24,51 @@ else
         <InputText @bind-Value="inv.Description" class="form-control" />
     </div>
 
+    <!-- Collapsible Members Section -->
+    <div class="mb-3 card">
+        <div class="card-header" role="button" @onclick="ToggleMembersCollapse" style="cursor: pointer;">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>
+                    @if (showMembers)
+                    {
+                        <span>▼</span>
+                    }
+                    else
+                    {
+                        <span>▶</span>
+                    }
+                    Members (@members?.Count ?? 0)
+                </span>
+                <button type="button" class="btn btn-sm btn-primary" @onclick:stopPropagation="true" @onclick="OpenAddMemberDialog">
+                    Add Member
+                </button>
+            </div>
+        </div>
+        @if (showMembers && members != null)
+        {
+            <div class="card-body">
+                @if (members.Count == 0)
+                {
+                    <p class="text-muted">No members yet.</p>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var member in members)
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>@member.UserId</span>
+                                <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveMember(member.UserId)">
+                                    Remove
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
     <div class="mb-3 d-flex gap-2">
         <button type="submit" class="btn btn-primary" @onclick="EditInventory">Save</button>
         <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
@@ -36,20 +81,59 @@ else
     }
 }
 
+<dialog @ref="addMemberDialog">
+    <h4>Add Member</h4>
+    <div class="mb-3">
+        <label>Search User ID:</label>
+        <input type="text" @bind="searchUserId" placeholder="Enter user ID to search..." class="form-control" />
+    </div>
+    
+    @if (!string.IsNullOrEmpty(searchUserId))
+    {
+        <div class="mb-3">
+            <p class="text-muted">User ID: <strong>@searchUserId</strong></p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(memberErrorMessage))
+    {
+        <div class="alert alert-danger">@memberErrorMessage</div>
+    }
+
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" @onclick="ConfirmAddMember">Add</button>
+        <button type="button" class="btn btn-secondary" @onclick="CloseAddMemberDialog">Cancel</button>
+    </div>
+</dialog>
+
 @code {
 
     [Parameter]
     public required string id { get; set; }
-
-    [CascadingParameter]
-    private Task<AuthenticationState>? authenticationState { get; set; }
-
     Inventory? inv;
     private string errorMessage = string.Empty;
+    private string memberErrorMessage = string.Empty;
+    private bool showMembers = false;
+    private List<InventoryMembers> members = new();
+    private ElementReference addMemberDialog;
+    private string searchUserId = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         inv = await http.GetFromJsonAsync<Inventory>($"/api/Inventory/{id}");
+        await LoadMembers();
+    }
+
+    private async Task LoadMembers()
+    {
+        try
+        {
+            members = (await http.GetFromJsonAsync<List<InventoryMembers>>($"/api/inventory/{id}/members")) ?? new();
+        }
+        catch
+        {
+            members = new();
+        }
     }
 
     private async Task EditInventory()
@@ -90,6 +174,78 @@ else
         else
         {
             errorMessage = "Failed to delete inventory.";
+        }
+    }
+
+    private void ToggleMembersCollapse()
+    {
+        showMembers = !showMembers;
+    }
+
+    private async Task OpenAddMemberDialog()
+    {
+        searchUserId = string.Empty;
+        memberErrorMessage = string.Empty;
+        await jsRuntime.InvokeVoidAsync("openDialog", addMemberDialog);
+    }
+
+    private async Task CloseAddMemberDialog()
+    {
+        await jsRuntime.InvokeVoidAsync("closeDialog", addMemberDialog);
+    }
+
+    private async Task ConfirmAddMember()
+    {
+        if (string.IsNullOrWhiteSpace(searchUserId) || inv is null)
+        {
+            memberErrorMessage = "Please enter a user ID.";
+            return;
+        }
+
+        try
+        {
+            var response = await http.PostAsJsonAsync($"/api/inventory/{inv.Id}/members", new { userId = searchUserId });
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadMembers();
+                await CloseAddMemberDialog();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                memberErrorMessage = $"Failed to add member: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            memberErrorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task RemoveMember(string userId)
+    {
+        if (inv is null)
+            return;
+
+        var confirmed = await jsRuntime.InvokeAsync<bool>("confirm", $"Remove '{userId}' from this inventory?");
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var response = await http.DeleteAsync($"/api/inventory/{inv.Id}/members/{userId}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadMembers();
+            }
+            else
+            {
+                errorMessage = "Failed to remove member.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
         }
     }
 }
