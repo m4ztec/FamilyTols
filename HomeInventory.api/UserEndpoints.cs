@@ -1,4 +1,6 @@
+using HomeInventory.api.Dbcontext;
 using HomeInventory.api.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomeInventory.api;
 
@@ -7,6 +9,17 @@ public static class UserEndpoints
     public static void MapUserEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/api/users").WithTags("Users").RequireAuthorization();
+        
+        group.MapGet("/{userid}/inventories", async (string userid, HomeInventoryapiContext db) =>
+        {
+            var hi = await db.InventoryMembers
+                .Where(model => model.UserId == userid && model.Inventory != null)
+                .Select(a => a.Inventory!)
+                .ToArrayAsync();
+            
+            return TypedResults.Ok(hi ?? []);
+        })
+        .WithName("GetUserInventories");
 
         group.MapGet("/{userid}/profile", (Func<HttpContext, Task<IResult>>)(async http =>
         {
@@ -27,5 +40,18 @@ public static class UserEndpoints
             return TypedResults.Ok(new { prof.UserId, prof.DisplayName });
         }))
         .WithName("GetUserProfile");
+
+        group.MapGet("/", (Func<HttpContext, Task<IResult>>)(async http =>
+        {
+            if (http.RequestServices.GetService(typeof(IIdentityProviderClient)) is not IIdentityProviderClient idp)
+                return TypedResults.Problem("Identity provider client not available");
+
+            var users = await idp.GetAllUsersAsync();
+            if (users is null)
+                return TypedResults.Ok(Array.Empty<object>());
+
+            return TypedResults.Ok(users.Select(u => new { u.UserId, u.DisplayName }).ToList());
+        }))
+        .WithName("GetAllUsers");
     }
 }

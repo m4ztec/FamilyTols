@@ -22,7 +22,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.Authority = keycloakAuthority;
     options.Audience = keycloakAudience;
-    options.RequireHttpsMetadata = requireHttps;
+    //options.RequireHttpsMetadata = requireHttps;
     options.TokenValidationParameters = new()
     {
         ValidateAudience = true,
@@ -30,6 +30,7 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
     };
+    options.SaveToken = true;
 });
 
 builder.Services.AddAuthorization();
@@ -50,7 +51,7 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseCors(x => x
                 .AllowAnyMethod()
                 .AllowAnyHeader()

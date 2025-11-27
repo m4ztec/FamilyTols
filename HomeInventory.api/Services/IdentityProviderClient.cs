@@ -62,4 +62,67 @@ public class IdentityProviderClient : IIdentityProviderClient
             return null;
         }
     }
+
+    public async Task<List<UserProfile>?> GetAllUsersAsync()
+    {
+        if (string.IsNullOrEmpty(_userInfoEndpoint))
+            return null;
+
+        try
+        {
+            // Extract base URL from userinfo endpoint to construct admin API endpoint
+            // e.g., "https://auth.m4ztec.com/realms/BlazorTest1/protocol/openid-connect/userinfo"
+            // becomes "https://auth.m4ztec.com/admin/realms/BlazorTest1/users"
+            var uri = new Uri(_userInfoEndpoint);
+            var baseUrl = $"{uri.Scheme}://{uri.Host}";
+            var pathSegments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (pathSegments.Length < 2 || pathSegments[0] != "realms")
+                return null;
+
+            var realmName = pathSegments[1];
+            var adminUsersUrl = $"{baseUrl}/admin/realms/{realmName}/users";
+
+            var req = new HttpRequestMessage(HttpMethod.Get, adminUsersUrl);
+            
+            // Try to add bearer token from context if available
+            var header = _httpContextAccessor?.HttpContext?.Request?.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(header))
+            {
+                req.Headers.TryAddWithoutValidation("Authorization", header);
+            }
+
+            var resp = await _http.SendAsync(req);
+            if (!resp.IsSuccessStatusCode)
+                return null;
+
+            var json = await resp.Content.ReadFromJsonAsync<JsonElement[]?>();
+            if (json is null || json.Length == 0)
+                return new List<UserProfile>();
+
+            var users = new List<UserProfile>();
+            foreach (var user in json)
+            {
+                var sub = user.TryGetProperty("id", out var s) ? s.GetString() : null;
+                var name = user.TryGetProperty("firstName", out var fn) ? fn.GetString() : null;
+                var lastName = user.TryGetProperty("lastName", out var ln) ? ln.GetString() : null;
+                var username = user.TryGetProperty("username", out var u) ? u.GetString() : null;
+
+                if (string.IsNullOrEmpty(sub))
+                    continue;
+
+                var displayName = !string.IsNullOrEmpty(name)
+                    ? (!string.IsNullOrEmpty(lastName) ? $"{name} {lastName}" : name)
+                    : (username ?? sub);
+
+                users.Add(new UserProfile { UserId = sub, DisplayName = displayName });
+            }
+
+            return users;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

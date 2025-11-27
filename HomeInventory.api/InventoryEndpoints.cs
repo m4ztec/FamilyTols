@@ -1,4 +1,6 @@
-﻿using HomeInventory.api.Dbcontext;
+﻿using System.Linq;
+using System.Security.Claims;
+using HomeInventory.api.Dbcontext;
 using HomeInventory.shared.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -54,13 +56,24 @@ public static class InventoryEndpoints
         })
         .WithName("CreateInventory");
 
-        group.MapDelete("/{id}", async Task<Results<Ok, NotFound>> (Guid id, HomeInventoryapiContext db) =>
+        group.MapDelete("/{id}", (Func<HttpContext, Guid, HomeInventoryapiContext, Task<IResult>>)(async (http, id, db) =>
         {
+            var userId = http.User?.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return TypedResults.Forbid();
+
+            var inventory = await db.Inventory.FirstOrDefaultAsync(i => i.Id == id);
+            if (inventory is null)
+                return TypedResults.NotFound();
+
+            if (!string.Equals(inventory.Owner, userId, StringComparison.OrdinalIgnoreCase))
+                return TypedResults.Forbid();
+
             var affected = await db.Inventory
                 .Where(model => model.Id == id)
                 .ExecuteDeleteAsync();
             return affected == 1 ? TypedResults.Ok() : TypedResults.NotFound();
-        })
+        }))
         .WithName("DeleteInventory");
 
         group.MapGet("/{inventoryId}/products", async (Guid inventoryId, HomeInventoryapiContext db) =>
@@ -213,18 +226,126 @@ public static class InventoryEndpoints
 
     public static void MapInventoryMembersEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/users").WithTags(nameof(InventoryMembers)).RequireAuthorization();
+        var inventoryMembersGroup = routes.MapGroup("/api/inventory").WithTags(nameof(InventoryMembers)).RequireAuthorization();
 
-        group.MapGet("/{userid}/inventories", async (string userid, HomeInventoryapiContext db) =>
+        inventoryMembersGroup.MapGet("/{inventoryId}/members", async (Guid inventoryId, HomeInventoryapiContext db) =>
         {
-            var hi = await db.InventoryMembers
-                .Where(model => model.UserId == userid && model.Inventory != null)
-                .Select(a => a.Inventory!)
-                .ToArrayAsync();
-            
-            return TypedResults.Ok(hi ?? []);
+            var members = await db.InventoryMembers
+                .Where(m => m.InventoryId == inventoryId)
+                .ToListAsync();
+
+            return TypedResults.Ok(members ?? []);
         })
-        .WithName("GetUserInventories");
+        .WithName("GetInventoryMembers");
+
+        inventoryMembersGroup.MapPost("/{inventoryId:guid}/members", (Func<HttpContext, Guid, AddMemberRequest, HomeInventoryapiContext, Task<IResult>>)(async (http, inventoryId, request, db) =>
+        {
+            var userId = http.Request.RouteValues["userid"]?.ToString()
+                         ?? http.User?.FindFirst("sub")?.Value
+                         ?? http.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value?.ToString();
+            if (string.IsNullOrEmpty(userId))
+                return TypedResults.Forbid();
+
+            if (string.IsNullOrWhiteSpace(request.UserId))
+                return TypedResults.BadRequest("UserId is required.");
+
+            var inventory = await db.Inventory.FirstOrDefaultAsync(i => i.Id == inventoryId);
+            if (inventory is null)
+                return TypedResults.NotFound($"Inventory {inventoryId} not found.");
+
+            if (!string.Equals(inventory.Owner, userId, StringComparison.OrdinalIgnoreCase))
+                return TypedResults.Forbid();
+
+            var alreadyMember = await db.InventoryMembers
+                .AnyAsync(m => m.InventoryId == inventoryId && m.UserId == request.UserId);
+            if (alreadyMember)
+                return TypedResults.Conflict($"User {request.UserId} is already a member of this inventory.");
+
+            var newMember = new InventoryMembers
+            {
+                InventoryId = inventoryId,
+                UserId = request.UserId,
+                MemberSince = DateTimeOffset.UtcNow
+            };
+
+            db.InventoryMembers.Add(newMember);
+            await db.SaveChangesAsync();
+
+            return TypedResults.Created($"/api/inventory/{inventoryId}/members/{request.UserId}", newMember);
+        }))
+        .WithName("AddInventoryMember");
+
+        inventoryMembersGroup.MapDelete("/{inventoryId:guid}/members/{userId}", (Func<HttpContext, Guid, string, HomeInventoryapiContext, Task<IResult>>)(async (http, inventoryId, userId, db) =>
+        {
+            var callerId = http.Request.RouteValues["userid"]?.ToString();
+            if (string.IsNullOrEmpty(callerId))
+                return TypedResults.Forbid();
+
+            var inventory = await db.Inventory.FirstOrDefaultAsync(i => i.Id == inventoryId);
+            if (inventory is null)
+                return TypedResults.NotFound($"Inventory {inventoryId} not found.");
+
+            // Prevent removing the owner via this endpoint
+            if (string.Equals(inventory.Owner, userId, StringComparison.OrdinalIgnoreCase))
+            {
+                return TypedResults.BadRequest("Cannot remove the owner. Transfer ownership before removing.");
+            }
+
+            // Allow the caller to remove themselves (leave), or allow the owner to remove others
+            if (!string.Equals(callerId, userId, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(inventory.Owner, callerId, StringComparison.OrdinalIgnoreCase))
+            {
+                return TypedResults.Forbid();
+            }
+
+            var affected = await db.InventoryMembers
+                .Where(m => m.InventoryId == inventoryId && m.UserId == userId)
+                .ExecuteDeleteAsync();
+
+            return affected > 0 ? TypedResults.Ok() : TypedResults.NotFound();
+        }))
+        .WithName("RemoveInventoryMember");
+
+        // Transfer ownership endpoint: sets Inventory.Owner to new user and ensures the new owner is a member
+        inventoryMembersGroup.MapPut("/{inventoryId:guid}/owner", (Func<HttpContext, Guid, TransferOwnerRequest, HomeInventoryapiContext, Task<IResult>>)(async (http, inventoryId, req, db) =>
+        {
+            var callerId = http.Request.RouteValues["userid"]?.ToString();
+            if (string.IsNullOrEmpty(callerId))
+                return TypedResults.Forbid();
+
+            if (req is null || string.IsNullOrWhiteSpace(req.UserId))
+                return TypedResults.BadRequest("UserId is required.");
+
+            var inventory = await db.Inventory.FirstOrDefaultAsync(i => i.Id == inventoryId);
+            if (inventory is null)
+                return TypedResults.NotFound($"Inventory {inventoryId} not found.");
+
+            // Only the current owner may transfer ownership
+            if (!string.Equals(inventory.Owner, callerId, StringComparison.OrdinalIgnoreCase))
+                return TypedResults.Forbid();
+
+            // If the requested user is already owner, nothing to do
+            if (string.Equals(inventory.Owner, req.UserId, StringComparison.OrdinalIgnoreCase))
+                return TypedResults.Ok(inventory);
+
+            // Ensure the new owner is present in InventoryMembers; if not, add them
+            var isMember = await db.InventoryMembers.AnyAsync(m => m.InventoryId == inventoryId && m.UserId == req.UserId);
+            if (!isMember)
+            {
+                db.InventoryMembers.Add(new InventoryMembers
+                {
+                    InventoryId = inventoryId,
+                    UserId = req.UserId,
+                    MemberSince = DateTimeOffset.UtcNow
+                });
+            }
+
+            inventory.Owner = req.UserId;
+            await db.SaveChangesAsync();
+
+            return TypedResults.Ok(inventory);
+        }))
+        .WithName("TransferInventoryOwner");
     }
 
     public static void MapProductEndpoints(this IEndpointRouteBuilder routes)
@@ -277,4 +398,14 @@ public static class InventoryEndpoints
         })
         .WithName("DeleteProduct");
     }
+}
+
+public class AddMemberRequest
+{
+    public string? UserId { get; set; }
+}
+
+public class TransferOwnerRequest
+{
+    public string? UserId { get; set; }
 }

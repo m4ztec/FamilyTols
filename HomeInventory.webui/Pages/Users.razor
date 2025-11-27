@@ -1,0 +1,76 @@
+@page "/users"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@inject HttpClient http
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<PageTitle>Users</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h1>All Users</h1>
+    <button class="btn btn-secondary" @onclick="BackToHome">Back</button>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height:60vh">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-2">Loading users...</div>
+        </div>
+    </div>
+}
+else if (users?.Any() != true)
+{
+    <div class="alert alert-info">
+        No users found.
+    </div>
+}
+else
+{
+    <QuickGrid Class="table" Items="users">
+        <PropertyColumn Property="user => user.UserId" Title="User ID" />
+        <PropertyColumn Property="user => user.DisplayName" Title="Display Name" />
+    </QuickGrid>
+}
+
+@code {
+    private IQueryable<UserProfile>? users;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        try
+        {
+            users = (await http.GetFromJsonAsync<IEnumerable<UserProfile>>("/api/users"))?.AsQueryable();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+            users = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void BackToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private class UserProfile
+    {
+        public string? UserId { get; set; }
+        public string? DisplayName { get; set; }
+    }
+}
