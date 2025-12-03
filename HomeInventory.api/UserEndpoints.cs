@@ -1,4 +1,5 @@
 using HomeInventory.api.Dbcontext;
+using HomeInventory.api.Extensions;
 using HomeInventory.api.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,7 +24,7 @@ public static class UserEndpoints
 
         group.MapGet("/{userid}/profile", (Func<HttpContext, Task<IResult>>)(async http =>
         {
-            var userid = http.Request.RouteValues["userid"]?.ToString();
+            var userid = http.GetUserId();
             if (string.IsNullOrEmpty(userid))
                 return TypedResults.BadRequest("userid missing");
 

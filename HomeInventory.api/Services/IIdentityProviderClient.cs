@@ -1,11 +1,9 @@
-using System.Threading.Tasks;
-
 namespace HomeInventory.api.Services;
 
 public interface IIdentityProviderClient
 {
     Task<UserProfile?> GetUserProfileAsync(string userId, string? bearerToken = null);
-    Task<List<UserProfile>?> GetAllUsersAsync();
+    Task<List<UserProfile>> GetAllUsersAsync();
 }
 
 public class UserProfile

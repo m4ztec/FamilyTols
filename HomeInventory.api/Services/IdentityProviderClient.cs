@@ -1,8 +1,4 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using Microsoft.Extensions.Configuration;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
 
 namespace HomeInventory.api.Services;
 
@@ -21,10 +17,9 @@ public class IdentityProviderClient : IIdentityProviderClient
 
     public async Task<UserProfile?> GetUserProfileAsync(string userId, string? bearerToken = null)
     {
-        // if bearer token not provided, try to read from current HttpContext
         if (string.IsNullOrEmpty(bearerToken))
         {
-            var header = _httpContextAccessor?.HttpContext?.Request?.Headers["Authorization"].FirstOrDefault();
+            var header = _httpContextAccessor?.HttpContext?.Request?.Headers.Authorization.FirstOrDefault();
             bearerToken = string.IsNullOrEmpty(header) ? null : header;
         }
 
@@ -49,7 +44,6 @@ public class IdentityProviderClient : IIdentityProviderClient
             var preferred = json.Value.TryGetProperty("preferred_username", out var p) ? p.GetString() : null;
             var email = json.Value.TryGetProperty("email", out var e) ? e.GetString() : null;
 
-            // ensure the returned subject matches requested userId
             if (sub is null || !string.Equals(sub, userId, StringComparison.OrdinalIgnoreCase))
                 return null;
 
@@ -63,10 +57,10 @@ public class IdentityProviderClient : IIdentityProviderClient
         }
     }
 
-    public async Task<List<UserProfile>?> GetAllUsersAsync()
+    public async Task<List<UserProfile>> GetAllUsersAsync()
     {
         if (string.IsNullOrEmpty(_userInfoEndpoint))
-            return null;
+            return [];
 
         try
         {
@@ -78,7 +72,7 @@ public class IdentityProviderClient : IIdentityProviderClient
             var pathSegments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
             
             if (pathSegments.Length < 2 || pathSegments[0] != "realms")
-                return null;
+                return [];
 
             var realmName = pathSegments[1];
             var adminUsersUrl = $"{baseUrl}/admin/realms/{realmName}/users";
@@ -86,7 +80,7 @@ public class IdentityProviderClient : IIdentityProviderClient
             var req = new HttpRequestMessage(HttpMethod.Get, adminUsersUrl);
             
             // Try to add bearer token from context if available
-            var header = _httpContextAccessor?.HttpContext?.Request?.Headers["Authorization"].FirstOrDefault();
+            var header = _httpContextAccessor?.HttpContext?.Request?.Headers.Authorization.FirstOrDefault();
             if (!string.IsNullOrEmpty(header))
             {
                 req.Headers.TryAddWithoutValidation("Authorization", header);
@@ -94,13 +88,13 @@ public class IdentityProviderClient : IIdentityProviderClient
 
             var resp = await _http.SendAsync(req);
             if (!resp.IsSuccessStatusCode)
-                return null;
+                return [];
 
             var json = await resp.Content.ReadFromJsonAsync<JsonElement[]?>();
             if (json is null || json.Length == 0)
-                return new List<UserProfile>();
+                return [];
 
-            var users = new List<UserProfile>();
+            List<UserProfile> users = [];
             foreach (var user in json)
             {
                 var sub = user.TryGetProperty("id", out var s) ? s.GetString() : null;
@@ -122,7 +116,7 @@ public class IdentityProviderClient : IIdentityProviderClient
         }
         catch
         {
-            return null;
+            return [];
         }
     }
 }

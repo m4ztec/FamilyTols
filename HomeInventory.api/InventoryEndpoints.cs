@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Security.Claims;
 using HomeInventory.api.Dbcontext;
+using HomeInventory.api.Extensions;
 using HomeInventory.shared.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -58,7 +59,7 @@ public static class InventoryEndpoints
 
         group.MapDelete("/{id}", (Func<HttpContext, Guid, HomeInventoryapiContext, Task<IResult>>)(async (http, id, db) =>
         {
-            var userId = http.User?.FindFirst("sub")?.Value;
+            var userId = http.GetUserId();
             if (string.IsNullOrEmpty(userId))
                 return TypedResults.Forbid();
 
@@ -192,12 +193,11 @@ public static class InventoryEndpoints
             var inventoryExists = await db.Inventory.AnyAsync(i => i.Id == inventoryId);
             if (!inventoryExists)
                 return Results.NotFound($"Inventory {inventoryId} not found.");
-            // Find which of the provided ids exist
+
             var products = await db.Product.Where(p => productIds.Contains(p.Id)).ToListAsync();
             var foundIds = products.Select(p => p.Id).ToHashSet();
             var missing = productIds.Where(id => !foundIds.Contains(id)).ToArray();
 
-            // Find which of the found products are actually linked
             var linked = await db.InventoryProducts
                 .Where(ip => ip.InventoryId == inventoryId && productIds.Contains(ip.ProductId))
                 .Select(ip => ip.ProductId)
@@ -205,7 +205,6 @@ public static class InventoryEndpoints
 
             var notLinkedIds = productIds.Except(linked).ToArray();
 
-            // Delete the linked inventory products
             var deleted = await db.InventoryProducts
                 .Where(ip => ip.InventoryId == inventoryId && productIds.Contains(ip.ProductId))
                 .ExecuteDeleteAsync();
@@ -238,15 +237,13 @@ public static class InventoryEndpoints
         })
         .WithName("GetInventoryMembers");
 
-        inventoryMembersGroup.MapPost("/{inventoryId:guid}/members", (Func<HttpContext, Guid, AddMemberRequest, HomeInventoryapiContext, Task<IResult>>)(async (http, inventoryId, request, db) =>
+        inventoryMembersGroup.MapPost("/{inventoryId:guid}/members", (Func<HttpContext, Guid, AddMemberRequest, HomeInventoryapiContext, Task<IResult>>)(async (http, inventoryId, AddMemberRequest, db) =>
         {
-            var userId = http.Request.RouteValues["userid"]?.ToString()
-                         ?? http.User?.FindFirst("sub")?.Value
-                         ?? http.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value?.ToString();
+            var userId = http.GetUserId();
             if (string.IsNullOrEmpty(userId))
                 return TypedResults.Forbid();
 
-            if (string.IsNullOrWhiteSpace(request.UserId))
+            if (string.IsNullOrWhiteSpace(AddMemberRequest.UserId))
                 return TypedResults.BadRequest("UserId is required.");
 
             var inventory = await db.Inventory.FirstOrDefaultAsync(i => i.Id == inventoryId);
@@ -257,27 +254,27 @@ public static class InventoryEndpoints
                 return TypedResults.Forbid();
 
             var alreadyMember = await db.InventoryMembers
-                .AnyAsync(m => m.InventoryId == inventoryId && m.UserId == request.UserId);
+                .AnyAsync(m => m.InventoryId == inventoryId && m.UserId == AddMemberRequest.UserId);
             if (alreadyMember)
-                return TypedResults.Conflict($"User {request.UserId} is already a member of this inventory.");
+                return TypedResults.Conflict($"User {AddMemberRequest.UserId} is already a member of this inventory.");
 
             var newMember = new InventoryMembers
             {
                 InventoryId = inventoryId,
-                UserId = request.UserId,
+                UserId = AddMemberRequest.UserId,
                 MemberSince = DateTimeOffset.UtcNow
             };
 
             db.InventoryMembers.Add(newMember);
             await db.SaveChangesAsync();
 
-            return TypedResults.Created($"/api/inventory/{inventoryId}/members/{request.UserId}", newMember);
+            return TypedResults.Created($"/api/inventory/{inventoryId}/members/{AddMemberRequest.UserId}", newMember);
         }))
         .WithName("AddInventoryMember");
 
         inventoryMembersGroup.MapDelete("/{inventoryId:guid}/members/{userId}", (Func<HttpContext, Guid, string, HomeInventoryapiContext, Task<IResult>>)(async (http, inventoryId, userId, db) =>
         {
-            var callerId = http.Request.RouteValues["userid"]?.ToString();
+            var callerId = http.GetUserId();
             if (string.IsNullOrEmpty(callerId))
                 return TypedResults.Forbid();
 
@@ -309,7 +306,7 @@ public static class InventoryEndpoints
         // Transfer ownership endpoint: sets Inventory.Owner to new user and ensures the new owner is a member
         inventoryMembersGroup.MapPut("/{inventoryId:guid}/owner", (Func<HttpContext, Guid, TransferOwnerRequest, HomeInventoryapiContext, Task<IResult>>)(async (http, inventoryId, req, db) =>
         {
-            var callerId = http.Request.RouteValues["userid"]?.ToString();
+            var callerId = http.GetUserId();
             if (string.IsNullOrEmpty(callerId))
                 return TypedResults.Forbid();
 
