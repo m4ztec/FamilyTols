@@ -6,10 +6,10 @@ services:
       context: .
       dockerfile: ./Dockerfile
     ports:
-      - "80:80"
+      - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
       - Keycloak__Authority=${KEYCLOAK_AUTHORITY:-http://keycloak:8080/auth/realms/your-realm}
       - Keycloak__Audience=${KEYCLOAK_AUDIENCE:-your-audience}
       - Keycloak__RequireHttpsMetadata=false
@@ -18,7 +18,7 @@ services:
       - app-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 3s
       retries: 3
