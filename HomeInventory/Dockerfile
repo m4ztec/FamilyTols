@@ -2,17 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-webui
 WORKDIR /src
 
-# Copy solution and project files
-COPY ["HomeInventory.sln", "."]
-COPY ["HomeInventory.webui/HomeInventory.webui.csproj", "HomeInventory.webui/"]
-COPY ["HomeInventory.shared/HomeInventory.shared.csproj", "HomeInventory.shared/"]
+# Copy all files
+COPY . .
 
-# Restore dependencies
-RUN dotnet restore "HomeInventory.sln"
-
-# Copy source code
-COPY ["HomeInventory.webui/", "HomeInventory.webui/"]
-COPY ["HomeInventory.shared/", "HomeInventory.shared/"]
+# Restore dependencies for webui
+RUN dotnet restore "HomeInventory.webui/HomeInventory.webui.csproj"
 
 # Build and publish the Blazor WASM app
 RUN dotnet publish "HomeInventory.webui/HomeInventory.webui.csproj" -c Release -o /app/webui /p:UseAppHost=false
@@ -21,17 +15,11 @@ RUN dotnet publish "HomeInventory.webui/HomeInventory.webui.csproj" -c Release -
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-api
 WORKDIR /src
 
-# Copy solution and project files
-COPY ["HomeInventory.sln", "."]
-COPY ["HomeInventory.api/HomeInventory.api.csproj", "HomeInventory.api/"]
-COPY ["HomeInventory.shared/HomeInventory.shared.csproj", "HomeInventory.shared/"]
+# Copy all files
+COPY . .
 
-# Restore dependencies
-RUN dotnet restore "HomeInventory.sln"
-
-# Copy source code
-COPY ["HomeInventory.api/", "HomeInventory.api/"]
-COPY ["HomeInventory.shared/", "HomeInventory.shared/"]
+# Restore dependencies for API
+RUN dotnet restore "HomeInventory.api/HomeInventory.api.csproj"
 
 # Build the API project
 RUN dotnet build "HomeInventory.api/HomeInventory.api.csproj" -c Release -o /app/api/build
