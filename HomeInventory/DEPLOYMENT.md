@@ -32,9 +32,9 @@ This guide covers deploying HomeInventory API and Web UI to cloud providers like
    ```
 
 3. **Access the application:**
-   - Web UI: http://localhost
-   - API: http://localhost/api/inventory
-   - API Docs: http://localhost/scalar/v1
+   - Web UI: http://localhost:8080
+   - API: http://localhost:8080/api/inventory
+   - API Docs: http://localhost:8080/scalar/v1
 
 4. **View logs:**
    ```bash
@@ -77,8 +77,8 @@ Railway makes it easy to deploy containerized applications.
 
 3. **Port Configuration:**
    - Railway will automatically assign a public domain
-   - The container exposes both port 80 (Web UI + API proxy) and 8080 (direct API)
-   - Traffic will route through port 80
+   - The container exposes port 8080
+   - Kestrel serves both the API and static Web UI files
 
 ### Step 3: Deploy
 
@@ -117,8 +117,7 @@ docker push <YOUR-AWS-ACCOUNT>.dkr.ecr.us-east-1.amazonaws.com/homeInventory:lat
 2. Create task definition
 3. Specify container image URI from ECR: `<YOUR-AWS-ACCOUNT>.dkr.ecr.us-east-1.amazonaws.com/homeInventory:latest`
 4. Set port mappings:
-   - Port 80 (Web UI + API proxy) → 80
-   - Port 8080 (direct API) → 8080
+   - Port 8080 → 8080 (Kestrel serves API and static files)
 5. Configure environment variables:
    - `ASPNETCORE_ENVIRONMENT`: `Production`
    - `ASPNETCORE_URLS`: `http://+:8080`
@@ -253,15 +252,15 @@ These are configured in the Dockerfiles and help load balancers detect unhealthy
 
 ### Single Container Architecture
 
-- **Web UI**: Served statically by Nginx
-- **API**: .NET Core application running alongside Nginx
-- **Both services**: Share the same container, easy to scale horizontally
+- **Web UI**: Served as static files from the `wwwroot` directory by Kestrel
+- **API**: .NET Core application running on Kestrel
+- **Both services**: In the same container, easy to scale horizontally
 
 ### Load Balancing
 
 - Use a load balancer (ALB, NLB, or platform-provided)
-- Route all traffic to port 80 (Nginx proxy) or 8080 (direct API)
-- Nginx automatically proxies `/api/*` calls to the API application
+- Route all traffic to port 8080
+- Kestrel serves both API endpoints and static Web UI files
 
 ### Auto-Scaling
 

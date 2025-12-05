@@ -40,30 +40,22 @@ RUN dotnet build "HomeInventory.api/HomeInventory.api.csproj" -c Release -o /app
 FROM build-api AS publish-api
 RUN dotnet publish "HomeInventory.api/HomeInventory.api.csproj" -c Release -o /app/api/publish /p:UseAppHost=false
 
-# Runtime stage - Combined API + Static Files
+# Runtime stage - Kestrel only
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 
 WORKDIR /app
 
-# Install Nginx
-RUN apt-get update && \
-    apt-get install -y nginx curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy Nginx configuration
-COPY nginx-combined.conf /etc/nginx/nginx.conf
-
 # Copy published API files
-COPY --from=publish-api /app/api/publish ./api
+COPY --from=publish-api /app/api/publish .
 
-# Copy published Blazor WebUI static files to Nginx
-COPY --from=build-webui /app/webui/wwwroot /var/www/html
+# Copy published Blazor WebUI static files to wwwroot
+COPY --from=build-webui /app/webui/wwwroot ./wwwroot
 
 # Create directories for runtime data
 RUN mkdir -p /data && chmod 777 /data
 
-# Expose ports
-EXPOSE 8080 80
+# Expose port
+EXPOSE 8080
 
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:8080
@@ -73,9 +65,5 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Copy startup script
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-
-# Run both services
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# Run the application
+ENTRYPOINT ["dotnet", "HomeInventory.api.dll"]
