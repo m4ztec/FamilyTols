@@ -51,6 +51,10 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// Serve static files (Blazor WebAssembly app from wwwroot)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 //app.UseHttpsRedirection();
 app.UseCors(x => x
                 .AllowAnyMethod()
@@ -81,5 +85,12 @@ app.MapGet("/hi", () =>
 })
 .WithName("test_01")
 .RequireAuthorization();
+
+// Fallback route for Blazor client-side routing
+app.MapFallback("/{**route}", async context =>
+{
+    context.Response.ContentType = "text/html";
+    await context.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
+});
 
 app.Run();
