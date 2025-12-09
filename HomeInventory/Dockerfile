@@ -39,6 +39,9 @@ COPY --from=publish-api /app/api/publish .
 # Copy published Blazor WebUI static files to wwwroot
 COPY --from=build-webui /app/webui/wwwroot ./wwwroot
 
+# Verify wwwroot exists and has files
+RUN ls -la /app && ls -la /app/wwwroot
+
 # Create directories for runtime data
 RUN mkdir -p /data && chmod 777 /data
 
