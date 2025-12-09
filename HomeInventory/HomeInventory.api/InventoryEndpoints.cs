@@ -382,7 +382,7 @@ public static class InventoryEndpoints
         {
             db.Product.Add(product);
             await db.SaveChangesAsync();
-            return TypedResults.Created($"/api/Product/{product.Name}", product);
+            return TypedResults.Created($"/api/Product/{Uri.EscapeDataString(product.Name)}", product);
         })
         .WithName("CreateProduct");
 
