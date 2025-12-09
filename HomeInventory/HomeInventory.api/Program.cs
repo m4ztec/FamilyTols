@@ -22,16 +22,13 @@ builder.Services.AddAuthentication(options =>
 {
     options.Authority = keycloakAuthority;
     options.Audience = keycloakAudience;
-    options.RequireHttpsMetadata = requireHttps;
-    options.MetadataAddress = $"{keycloakAuthority}/.well-known/openid-configuration";
-    
+    options.RequireHttpsMetadata = requireHttps;    
     options.TokenValidationParameters = new()
     {
         ValidateAudience = false,
         ValidateIssuer = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = keycloakAuthority,
         ValidateTokenReplay = false,
         ClockSkew = TimeSpan.FromMinutes(1), // Allow 1 minute clock skew
     };

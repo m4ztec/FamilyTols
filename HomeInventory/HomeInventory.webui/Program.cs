@@ -11,7 +11,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 var baseAddress = builder.HostEnvironment.BaseAddress;
 
 // Load Keycloak settings from configuration (environment variables)
-var keycloakAuthority = builder.Configuration["Keycloak:Authority"] ?? "https://auth.m4ztec.com/realms/BlazorTest1";
+var keycloakAuthority = builder.Configuration["Keycloak:Authority"] ?? "https://auth.m4ztec.com/realms/HomeInventoryProd";
 var keycloakClientId = builder.Configuration["Keycloak:ClientId"] ?? "blazor-client";
 var keycloakScope = builder.Configuration["Keycloak:Scope"] ?? "blazor-api-scope";
 
