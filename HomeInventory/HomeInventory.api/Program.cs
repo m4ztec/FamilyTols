@@ -22,15 +22,38 @@ builder.Services.AddAuthentication(options =>
 {
     options.Authority = keycloakAuthority;
     options.Audience = keycloakAudience;
-    //options.RequireHttpsMetadata = requireHttps;
+    options.RequireHttpsMetadata = requireHttps;
+    
     options.TokenValidationParameters = new()
     {
-        ValidateAudience = !string.IsNullOrEmpty(keycloakAudience), // Only validate if audience is configured
+        ValidateAudience = false, // Disable audience validation for now
         ValidateIssuer = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
+        ValidIssuer = keycloakAuthority, // Explicitly set the valid issuer
     };
+    
     options.SaveToken = true;
+    
+    // Add event handler for debugging
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine($"Token validated successfully for user: {context.Principal?.Identity?.Name}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"Challenge: {context.ErrorDescription}");
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
