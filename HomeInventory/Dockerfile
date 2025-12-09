@@ -57,9 +57,6 @@ RUN mkdir -p /data && chmod 777 /data
 # Expose port (Railway will assign dynamically)
 EXPOSE 8080
 
-# Volume for persistent database storage
-VOLUME ["/data"]
-
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
