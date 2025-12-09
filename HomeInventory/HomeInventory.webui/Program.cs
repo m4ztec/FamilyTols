@@ -12,14 +12,24 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddHttpClient("ExternalApi",
-      client => client.BaseAddress = new Uri(new Uri(builder.HostEnvironment.BaseAddress), ApiUri ?? "/"))
-      .AddHttpMessageHandler(sp =>
-      {
-          var handler = sp.GetRequiredService<AuthorizationMessageHandler>()
-          .ConfigureHandler([new Uri(new Uri(builder.HostEnvironment.BaseAddress), ApiUri ?? "/").ToString()]);
-          return handler;
-      });
+// Create base address for API (same origin as Web UI)
+var baseAddress = builder.HostEnvironment.BaseAddress;
+
+// Add HTTP client with authorization
+builder.Services.AddHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri(baseAddress);
+})
+.AddHttpMessageHandler(sp =>
+{
+    var handler = sp.GetRequiredService<AuthorizationMessageHandler>();
+    handler.ConfigureHandler(
+        authorizedUrls: [baseAddress],
+        scopes: ["openid", "profile", "email", "blazor-api-scope"]
+    );
+    return handler;
+});
+
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ExternalApi"));
 
 // Load Keycloak settings from configuration (environment variables)

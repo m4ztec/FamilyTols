@@ -25,7 +25,7 @@ builder.Services.AddAuthentication(options =>
     //options.RequireHttpsMetadata = requireHttps;
     options.TokenValidationParameters = new()
     {
-        ValidateAudience = true,
+        ValidateAudience = !string.IsNullOrEmpty(keycloakAudience), // Only validate if audience is configured
         ValidateIssuer = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
