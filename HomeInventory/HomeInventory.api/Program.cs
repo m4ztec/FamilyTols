@@ -51,23 +51,7 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Serve static files (Blazor WebAssembly app from wwwroot)
-// This must be before the fallback route
-app.UseDefaultFiles(new DefaultFilesOptions
-{
-    DefaultFileNames = new List<string> { "index.html" }
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    OnPrepareResponse = ctx =>
-    {
-        // Cache static files for 1 year (they have content hash in filename)
-        ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-    }
-});
-
-//app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 app.UseCors(x => x
                 .AllowAnyMethod()
                 .AllowAnyHeader()
@@ -98,26 +82,7 @@ app.MapGet("/hi", () =>
 .WithName("test_01")
 .RequireAuthorization();
 
-// Fallback route for Blazor client-side routing
-// Must be mapped AFTER all other routes to have the lowest priority
-app.MapFallback(async context =>
-{
-    var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
-    
-    // Deny requests to known non-UI routes
-    if (path.StartsWith("/api/") || 
-        path.StartsWith("/swagger") ||
-        path.StartsWith("/openapi") ||
-        path.StartsWith("/scalar") ||
-        path == "/hi")
-    {
-        context.Response.StatusCode = 404;
-        return;
-    }
-    
-    // Serve index.html for all other routes (Blazor client-side routing)
-    context.Response.ContentType = "text/html";
-    await context.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
-});
+app.UseStaticFiles(new StaticFileOptions {ServeUnknownFileTypes = true});
+app.MapFallbackToFile("index.html");
 
 app.Run();
