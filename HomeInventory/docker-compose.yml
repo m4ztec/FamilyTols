@@ -10,9 +10,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
-      - Keycloak__Authority=${KEYCLOAK_AUTHORITY:-http://keycloak:8080/auth/realms/your-realm}
-      - Keycloak__Audience=${KEYCLOAK_AUDIENCE:-your-audience}
+      - Keycloak__Authority=${KEYCLOAK_AUTHORITY:-https://auth.m4ztec.com/realms/BlazorTest1}
+      - Keycloak__Audience=${KEYCLOAK_AUDIENCE:-homeInventory-api}
       - Keycloak__RequireHttpsMetadata=false
+      - Keycloak__ClientId=${KEYCLOAK_CLIENT_ID:-blazor-client}
+      - Keycloak__Scope=${KEYCLOAK_SCOPE:-blazor-api-scope}
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION:-Data Source=/data/homeInventory.db}
     volumes:
       - app-data:/data

@@ -87,8 +87,26 @@ app.MapGet("/hi", () =>
 .RequireAuthorization();
 
 // Fallback route for Blazor client-side routing
+// Only apply to non-API routes, non-static files, and non-framework files
 app.MapFallback("/{**route}", async context =>
 {
+    var path = context.Request.Path.Value?.ToLower() ?? "";
+    
+    // Don't redirect API routes, static files, or framework files
+    if (path.StartsWith("/api") || 
+        path.StartsWith("/_framework") ||
+        path.StartsWith("/css") ||
+        path.StartsWith("/js") ||
+        path.StartsWith("/images") ||
+        path.Contains(".") ||  // Has file extension
+        path.StartsWith("/swagger") ||
+        path.StartsWith("/openapi") ||
+        path.StartsWith("/scalar"))
+    {
+        context.Response.StatusCode = 404;
+        return;
+    }
+    
     context.Response.ContentType = "text/html";
     await context.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
 });
