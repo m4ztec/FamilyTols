@@ -9,7 +9,8 @@ COPY . .
 RUN dotnet restore "HomeInventory.webui/HomeInventory.webui.csproj"
 
 # Build and publish the Blazor WASM app
-RUN dotnet publish "HomeInventory.webui/HomeInventory.webui.csproj" -c Release -o /app/webui /p:UseAppHost=false
+# Blazor WASM publishes to dist/ folder
+RUN dotnet publish "HomeInventory.webui/HomeInventory.webui.csproj" -c Release -o /app/webui-publish /p:UseAppHost=false
 
 # Build stage for API
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-api
@@ -36,11 +37,12 @@ WORKDIR /app
 # Copy published API files
 COPY --from=publish-api /app/api/publish .
 
-# Copy published Blazor WebUI static files to wwwroot
-COPY --from=build-webui /app/webui/wwwroot ./wwwroot
+# Copy published Blazor WebUI static files from dist folder to wwwroot
+# Blazor WASM publish outputs to dist/ subdirectory
+COPY --from=build-webui /app/webui-publish/wwwroot ./wwwroot
 
 # Verify wwwroot exists and has files
-RUN ls -la /app && ls -la /app/wwwroot
+RUN ls -la /app && ls -la /app/wwwroot && ls -la /app/wwwroot/_framework 2>/dev/null || echo "_framework not found, checking structure..."
 
 # Create directories for runtime data
 RUN mkdir -p /data && chmod 777 /data
