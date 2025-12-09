@@ -9,8 +9,13 @@ COPY . .
 RUN dotnet restore "HomeInventory.webui/HomeInventory.webui.csproj"
 
 # Build and publish the Blazor WASM app
-# Blazor WASM publishes to dist/ folder
 RUN dotnet publish "HomeInventory.webui/HomeInventory.webui.csproj" -c Release -o /app/webui-publish /p:UseAppHost=false
+
+# Verify wwwroot was created with _framework files
+RUN echo "Checking webui-publish structure:" && \
+    ls -la /app/webui-publish/ && \
+    ls -la /app/webui-publish/wwwroot/ && \
+    ls -la /app/webui-publish/wwwroot/_framework/ 2>/dev/null || echo "Warning: _framework folder structure check"
 
 # Build stage for API
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-api
@@ -37,12 +42,14 @@ WORKDIR /app
 # Copy published API files
 COPY --from=publish-api /app/api/publish .
 
-# Copy published Blazor WebUI static files from dist folder to wwwroot
-# Blazor WASM publish outputs to dist/ subdirectory
+# Copy published Blazor WebUI static files to wwwroot
 COPY --from=build-webui /app/webui-publish/wwwroot ./wwwroot
 
-# Verify wwwroot exists and has files
-RUN ls -la /app && ls -la /app/wwwroot && ls -la /app/wwwroot/_framework 2>/dev/null || echo "_framework not found, checking structure..."
+# Verify files were copied correctly
+RUN echo "=== Checking runtime stage ===" && \
+    echo "Contents of /app:" && ls -la /app/ && \
+    echo "Contents of /app/wwwroot:" && ls -la /app/wwwroot/ && \
+    echo "Contents of /app/wwwroot/_framework:" && ls -la /app/wwwroot/_framework/ | head -10
 
 # Create directories for runtime data
 RUN mkdir -p /data && chmod 777 /data
