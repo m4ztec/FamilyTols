@@ -23,14 +23,17 @@ builder.Services.AddAuthentication(options =>
     options.Authority = keycloakAuthority;
     options.Audience = keycloakAudience;
     options.RequireHttpsMetadata = requireHttps;
+    options.MetadataAddress = $"{keycloakAuthority}/.well-known/openid-configuration";
     
     options.TokenValidationParameters = new()
     {
-        ValidateAudience = false, // Disable audience validation for now
+        ValidateAudience = false,
         ValidateIssuer = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = keycloakAuthority, // Explicitly set the valid issuer
+        ValidIssuer = keycloakAuthority,
+        ValidateTokenReplay = false,
+        ClockSkew = TimeSpan.FromMinutes(1), // Allow 1 minute clock skew
     };
     
     options.SaveToken = true;
@@ -40,17 +43,21 @@ builder.Services.AddAuthentication(options =>
     {
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            Console.WriteLine($"[AUTH FAILED] Exception: {context.Exception?.Message}");
+            Console.WriteLine($"[AUTH FAILED] InnerException: {context.Exception?.InnerException?.Message}");
             return Task.CompletedTask;
         },
         OnTokenValidated = context =>
         {
-            Console.WriteLine($"Token validated successfully for user: {context.Principal?.Identity?.Name}");
+            var claims = context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}");
+            Console.WriteLine($"[TOKEN VALIDATED] User: {context.Principal?.Identity?.Name}");
+            Console.WriteLine($"[TOKEN VALIDATED] Claims: {string.Join(", ", claims ?? [])}");
             return Task.CompletedTask;
         },
         OnChallenge = context =>
         {
-            Console.WriteLine($"Challenge: {context.ErrorDescription}");
+            Console.WriteLine($"[CHALLENGE] Error: {context.Error}");
+            Console.WriteLine($"[CHALLENGE] Description: {context.ErrorDescription}");
             return Task.CompletedTask;
         }
     };
