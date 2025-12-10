@@ -8,13 +8,13 @@
             "name": "C#: API Debug",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/HomeInventory.api/HomeInventory.api.csproj"
+            "projectPath": "${workspaceFolder}/HomeInventory/HomeInventory.api/HomeInventory.api.csproj"
         },
         {
             "name": "C#: UI Debug",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/HomeInventory.webui/HomeInventory.webui.csproj"
+            "projectPath": "${workspaceFolder}/HomeInventory/HomeInventory.webui/HomeInventory.webui.csproj"
         }
     ],
      "compounds": [
