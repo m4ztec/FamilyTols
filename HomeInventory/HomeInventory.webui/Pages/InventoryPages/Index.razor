@@ -74,6 +74,13 @@ else
         }
         try
         {
+            if (string.IsNullOrEmpty(userId))
+            {
+                Console.WriteLine("[Index] userId is empty - user may not be authenticated");
+                return;
+            }
+
+            Console.WriteLine($"[Index] Fetching inventories for userId: {userId}");
             var hi = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
             userInvs = hi?.AsQueryable();
 
@@ -117,6 +124,11 @@ else
 
                 await Task.WhenAll(tasks);
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Index] Error loading inventories: {ex.Message}");
+            Console.WriteLine($"[Index] Exception: {ex}");
         }
         finally
         {

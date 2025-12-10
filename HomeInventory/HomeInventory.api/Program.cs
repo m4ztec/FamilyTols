@@ -22,15 +22,42 @@ builder.Services.AddAuthentication(options =>
 {
     options.Authority = keycloakAuthority;
     options.Audience = keycloakAudience;
-    //options.RequireHttpsMetadata = requireHttps;
+    options.RequireHttpsMetadata = requireHttps;    
     options.TokenValidationParameters = new()
     {
-        ValidateAudience = true,
+        ValidateAudience = false,
         ValidateIssuer = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
+        ValidateTokenReplay = false,
+        ClockSkew = TimeSpan.FromMinutes(1), // Allow 1 minute clock skew
     };
+    
     options.SaveToken = true;
+    
+    // Add event handler for debugging
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"[AUTH FAILED] Exception: {context.Exception?.Message}");
+            Console.WriteLine($"[AUTH FAILED] InnerException: {context.Exception?.InnerException?.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            var claims = context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}");
+            Console.WriteLine($"[TOKEN VALIDATED] User: {context.Principal?.Identity?.Name}");
+            Console.WriteLine($"[TOKEN VALIDATED] Claims: {string.Join(", ", claims ?? [])}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"[CHALLENGE] Error: {context.Error}");
+            Console.WriteLine($"[CHALLENGE] Description: {context.ErrorDescription}");
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -51,7 +78,29 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-//app.UseHttpsRedirection();
+// Apply database migrations automatically
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<HomeInventoryapiContext>();
+    try
+    {
+        Console.WriteLine("Applying database migrations...");
+        dbContext.Database.Migrate();
+        Console.WriteLine("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error applying migrations: {ex.Message}");
+        throw;
+    }
+}
+
+// Only redirect to HTTPS in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors(x => x
                 .AllowAnyMethod()
                 .AllowAnyHeader()
@@ -81,5 +130,8 @@ app.MapGet("/hi", () =>
 })
 .WithName("test_01")
 .RequireAuthorization();
+
+app.UseStaticFiles(new StaticFileOptions {ServeUnknownFileTypes = true});
+app.MapFallbackToFile("index.html");
 
 app.Run();
