@@ -13,11 +13,11 @@ public class InventoryProducts
     [ForeignKey(nameof(Product))]
     public Guid ProductId { get; set; }
 
-    [Range(1, int.MaxValue, ErrorMessage = "Only positive number allowed")]
-    public int ExistingAmont { get; set; }
+    [Range(1, double.MaxValue, ErrorMessage = "Only positive number allowed")]
+    public double ExistingAmont { get; set; }
 
-    [Range(1, int.MaxValue, ErrorMessage = "Only positive number allowed")]
-    public int DesiredAmont { get; set; }
+    [Range(1, double.MaxValue, ErrorMessage = "Only positive number allowed")]
+    public double DesiredAmont { get; set; }
 
     public Inventory Inventory { get; set; } = null!;
     public Product Product { get; set; } = null!;

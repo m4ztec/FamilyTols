@@ -10,6 +10,14 @@ namespace HomeInventory.api.Dbcontext
         public DbSet<InventoryProducts> InventoryProducts { get; set; } = default!;
         public DbSet<Product> Product { get; set; } = default!;
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder
+                .Entity<Product>()
+                .Property(x => x.Unit)
+                .HasConversion<string>(); // readable enum
+        }
+
         public override int SaveChanges()
         {
             ApplyAuditInfo();

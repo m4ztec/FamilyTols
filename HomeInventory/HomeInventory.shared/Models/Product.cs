@@ -19,6 +19,8 @@ public class Product
     [Range(0, double.MaxValue)]
     public double SupposedPrice { get; set; }
 
+    public PackageUnits Unit { get; set; }
+
     public ICollection<InventoryProducts> InventoryProducts { get; set; } = [];
 
 }

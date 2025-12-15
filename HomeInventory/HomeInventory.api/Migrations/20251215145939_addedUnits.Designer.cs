@@ -3,6 +3,7 @@ using System;
 using HomeInventory.api.Dbcontext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HomeInventory.api.Migrations
 {
     [DbContext(typeof(HomeInventoryapiContext))]
-    partial class HomeInventoryapiContextModelSnapshot : ModelSnapshot
+    [Migration("20251215145939_addedUnits")]
+    partial class addedUnits
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
