@@ -1,0 +1,260 @@
+@page "/shopping-list"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using HomeInventory.shared.Models
+@inject HttpClient http
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<PageTitle>My Shopping List</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h3>My Shopping List</h3>
+    <button class="btn btn-secondary" @onclick="BackToHome">Back to Inventories</button>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height:60vh">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-2">Loading shopping list…</div>
+        </div>
+    </div>
+}
+else if (shoppingListByInventory is null || shoppingListByInventory.Count == 0)
+{
+    <div class="alert alert-info">
+        No items in your shopping list. Start adding items from your inventories!
+    </div>
+}
+else
+{
+    <div class="container-fluid">
+        @foreach (var inventoryGroup in shoppingListByInventory)
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">@inventoryGroup.InventoryName</h5>
+                </div>
+                <div class="card-body">
+                    @if (inventoryGroup.Products.Count == 0)
+                    {
+                        <p class="text-muted">No items in this inventory's shopping list.</p>
+                    }
+                    else
+                    {
+                        <QuickGrid Class="table" Items="inventoryGroup.Products.AsQueryable()">
+                            <PropertyColumn Property="product => product.ProductName" />
+                            <PropertyColumn Property="product => product.ProductPrice" Title="Price" Format="0.00€" />
+                            <PropertyColumn Property="product => product.ExistingAmount" Title="Current" />
+                            <PropertyColumn Property="product => product.DesiredAmount" Title="Needed" />
+                            <TemplateColumn Title="To Buy">
+                                @{
+                                    var toBuy = Math.Max(0, context.DesiredAmount - context.ExistingAmount);
+                                }
+                                <span class="badge @(toBuy > 0 ? "bg-danger" : "bg-success")">
+                                    @toBuy
+                                </span>
+                            </TemplateColumn>
+                            <TemplateColumn Title="Actions">
+                                <button class="btn btn-sm btn-success" @onclick="() => BuyOne(context)" disabled="@(context.ExistingAmount >= context.DesiredAmount)">
+                                    Buy 1
+                                </button>
+                                <button class="btn btn-sm btn-primary ms-1" @onclick="() => BuyAll(context)" disabled="@(context.ExistingAmount >= context.DesiredAmount)">
+                                    Buy All
+                                </button>
+                            </TemplateColumn>
+                        </QuickGrid>
+                        <div class="mt-3">
+                            <strong>Total items to buy:</strong> 
+                            @{
+                                var totalToBuy = inventoryGroup.Products.Sum(p => Math.Max(0, p.DesiredAmount - p.ExistingAmount));
+                            }
+                            <span class="badge bg-warning">@totalToBuy</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationState { get; set; }
+    
+    private List<InventoryShoppingListGroup>? shoppingListByInventory;
+    private string userId = "";
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        
+        try
+        {
+            // Get current user
+            if (authenticationState is not null)
+            {
+                var authState = await authenticationState;
+                var user = authState?.User;
+                userId = user?.Claims.FirstOrDefault(a => a.Type == "sub")?.Value ?? "";
+            }
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                Console.WriteLine("[ShoppingList] userId is empty - user may not be authenticated");
+                return;
+            }
+
+            // Fetch all inventories for the user
+            var inventories = await http.GetFromJsonAsync<IEnumerable<Inventory>>($"/api/users/{userId}/inventories");
+            
+            if (inventories is null)
+            {
+                shoppingListByInventory = new List<InventoryShoppingListGroup>();
+                return;
+            }
+
+            // Fetch products for each inventory and group them
+            shoppingListByInventory = new List<InventoryShoppingListGroup>();
+
+            foreach (var inventory in inventories)
+            {
+                var products = await http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/inventory/{inventory.Id}/products");
+                
+                if (products != null && products.Any())
+                {
+                    // Filter to only items that need to be bought (DesiredAmount > ExistingAmount)
+                    var itemsToBuy = products
+                        .Where(p => p.DesiredAmount > p.ExistingAmount)
+                        .Select(p => new ShoppingListItem
+                        {
+                            ProductId = p.ProductId,
+                            ProductName = p.ProductName,
+                            ProductPrice = p.ProductPrice,
+                            ExistingAmount = p.ExistingAmount,
+                            DesiredAmount = p.DesiredAmount,
+                            Units = p.Units,
+                            InventoryId = inventory.Id,
+                            InventoryName = inventory.Name
+                        })
+                        .OrderBy(p => p.ProductName)
+                        .ToList();
+
+                    if (itemsToBuy.Any())
+                    {
+                        shoppingListByInventory.Add(new InventoryShoppingListGroup
+                        {
+                            InventoryName = inventory.Name,
+                            InventoryId = inventory.Id,
+                            Products = itemsToBuy
+                        });
+                    }
+                }
+            }
+
+            // Sort by inventory name
+            shoppingListByInventory = shoppingListByInventory.OrderBy(g => g.InventoryName).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ShoppingList] Error loading shopping list: {ex.Message}");
+            Console.WriteLine($"[ShoppingList] Exception: {ex}");
+            shoppingListByInventory = new List<InventoryShoppingListGroup>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void BackToHome()
+    {
+        Navigation.NavigateTo("/inventory");
+    }
+
+    private async Task BuyOne(ShoppingListItem item)
+    {
+        try
+        {
+            var updatedItem = new InventoryProductDto
+            {
+                ProductId = item.ProductId,
+                ProductName = item.ProductName,
+                ProductPrice = item.ProductPrice,
+                ExistingAmount = item.ExistingAmount + 1,
+                DesiredAmount = item.DesiredAmount,
+                Units = item.Units
+            };
+
+            var response = await http.PutAsJsonAsync(
+                $"/api/inventory/{item.InventoryId}/products/{item.ProductId}",
+                updatedItem
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                item.ExistingAmount += 1;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ShoppingList] Error buying one: {ex.Message}");
+        }
+    }
+
+    private async Task BuyAll(ShoppingListItem item)
+    {
+        try
+        {
+            var updatedItem = new InventoryProductDto
+            {
+                ProductId = item.ProductId,
+                ProductName = item.ProductName,
+                ProductPrice = item.ProductPrice,
+                ExistingAmount = item.DesiredAmount,
+                DesiredAmount = item.DesiredAmount,
+                Units = item.Units
+            };
+
+            var response = await http.PutAsJsonAsync(
+                $"/api/inventory/{item.InventoryId}/products/{item.ProductId}",
+                updatedItem
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                item.ExistingAmount = item.DesiredAmount;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ShoppingList] Error buying all: {ex.Message}");
+        }
+    }
+
+    private class InventoryShoppingListGroup
+    {
+        public string? InventoryName { get; set; } = "";
+        public Guid InventoryId { get; set; }
+        public List<ShoppingListItem> Products { get; set; } = new();
+    }
+
+    private class ShoppingListItem
+    {
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = "";
+        public double ProductPrice { get; set; }
+        public double ExistingAmount { get; set; }
+        public double DesiredAmount { get; set; }
+        public PackageUnits Units { get; set; }
+        public Guid InventoryId { get; set; }
+        public string? InventoryName { get; set; } = "";
+    }
+}

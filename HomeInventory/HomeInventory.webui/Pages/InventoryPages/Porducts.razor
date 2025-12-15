@@ -43,6 +43,7 @@
     <TemplateColumn Title="Price" Context="product">
         @($"{product.ProductPrice:0.00} €")
     </TemplateColumn>
+    <PropertyColumn Property="product => product.Units" />
     <PropertyColumn Property="product => product.ExistingAmount" />
     <PropertyColumn Property="product => product.DesiredAmount" />
 
