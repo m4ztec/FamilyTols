@@ -3,6 +3,7 @@
 @using HomeInventory.shared.Models
 @inject HttpClient http
 @inject NavigationManager Navigation
+@inject IJSRuntime jsRuntime
 @attribute [Authorize]
 
 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -44,10 +45,12 @@ else
     <QuickGrid Class="table" Items="products">
         <TemplateColumn Title="" Context="context">
             <HeaderTemplate>
-                <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAllHeader" checked="@IsAllSelected" />
+                <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAllHeader"
+                    checked="@IsAllSelected" />
             </HeaderTemplate>
             <ChildContent Context="context">
-                <input type="checkbox" @onchange="(e) => ToggleSelection(e, context)" checked="@selectedProductIds.Contains(context.ProductId)" />
+                <input type="checkbox" @onchange="(e) => ToggleSelection(e, context)"
+                    checked="@selectedProductIds.Contains(context.ProductId)" />
             </ChildContent>
         </TemplateColumn>
         <PropertyColumn Property="product => product.ProductName" Title="Product" />
@@ -63,7 +66,9 @@ else
             @($"{(product.DesiredAmount - product.ExistingAmount) * product.ProductPrice:0.00} €")
         </TemplateColumn>
         <TemplateColumn Title="Actions" Context="product">
-            <button class="btn btn-sm btn-success" @onclick="() => BuyProduct(product)">Bought</button>
+            <button class="btn btn-sm btn-success" @onclick="() => buyOne()">Buy one</button>
+            <button class="btn btn-sm btn-success" @onclick="() => BuyAll(product)">Buy All</button>
+            <button class="btn btn-sm btn-success" @onclick="() => ShowBuyCustomDialog(product)">Buy Custom</button>
         </TemplateColumn>
     </QuickGrid>
 
@@ -74,6 +79,22 @@ else
         }
         @($"{totalCost:0.00} €")
     </div>
+
+    <dialog @ref="BuyCustomDialog">
+        <h4>Buy Custom</h4>
+        <div class="mb-3">
+            <label for="customAmount" class="form-label">Amount to Buy for @SelectedProduct?.ProductName</label>
+            <InputNumber id="customAmount" class="form-control" min="0" step="0.01" @bind-value="CustomAmountToBuy" />
+        </div>
+        @if (!string.IsNullOrEmpty(buyCustomErrorMessage))
+        {
+            <div class="alert alert-success">@buyCustomErrorMessage</div>
+        }
+        <div class="d-flex">
+            <button class="btn btn-danger me-2" @onclick="BuyCustomAmount">Buy</button>
+            <button class="btn btn-secondary" @onclick="() => jsRuntime.CloseDialog(BuyCustomDialog)">Cancel</button>
+        </div>
+    </dialog>
 }
 
 @code {
@@ -96,13 +117,14 @@ else
         try
         {
             // Get all products for the inventory
-            var allProducts = await http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/Inventory/{inventoryId}/Products");
-            
+            var allProducts = await
+            http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/Inventory/{inventoryId}/Products");
+
             // Filter locally to show only products where desired > existing
             products = allProducts?
-                .Where(p => p.DesiredAmount > p.ExistingAmount)
-                .OrderByDescending(p => p.DesiredAmount - p.ExistingAmount)
-                .AsQueryable();
+            .Where(p => p.DesiredAmount > p.ExistingAmount)
+            .OrderByDescending(p => p.DesiredAmount - p.ExistingAmount)
+            .AsQueryable();
         }
         finally
         {
@@ -124,7 +146,8 @@ else
             selectedProductIds.Remove(product.ProductId);
     }
 
-    private bool IsAllSelected => products is not null && selectedProductIds.Count > 0 && products.Count() == selectedProductIds.Count;
+    private bool IsAllSelected => products is not null && selectedProductIds.Count > 0 && products.Count() ==
+    selectedProductIds.Count;
 
     private void ToggleSelectAllHeader(ChangeEventArgs e)
     {
@@ -149,24 +172,88 @@ else
         }
     }
 
-    private async Task BuyProduct(InventoryProductDto product)
+    private async Task BuyAll(InventoryProductDto product)
     {
         isBuying = true;
         try
         {
-            var updated = new InventoryProductDto
-            {
-                ProductId = product.ProductId,
-                ProductName = product.ProductName,
-                ProductPrice = product.ProductPrice,
-                ExistingAmount = product.DesiredAmount,
-                DesiredAmount = product.DesiredAmount
-            };
+            var updated = product with { ExistingAmount = product.DesiredAmount };
             var resp = await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{product.ProductId}", updated);
             if (resp.IsSuccessStatusCode)
             {
                 await LoadProducts();
                 selectedProductIds.Remove(product.ProductId);
+            }
+        }
+        finally
+        {
+            isBuying = false;
+        }
+    }
+
+    private ElementReference BuyCustomDialog;
+    private string? buyCustomErrorMessage;
+    private InventoryProductDto? SelectedProduct;
+    private double CustomAmountToBuy;
+
+    private async Task ShowBuyCustomDialog(InventoryProductDto product)
+    {
+        buyCustomErrorMessage = null;
+        CustomAmountToBuy = 0.0;
+        SelectedProduct = product with { };
+        await jsRuntime.OpenDialog(BuyCustomDialog);
+    }
+
+    private async Task BuyCustomAmount()
+    {
+        isBuying = true;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(SelectedProduct?.ProductName))
+            {
+                buyCustomErrorMessage = "Please select a product.";
+                return;
+            }
+            if (CustomAmountToBuy < 0)
+            {
+                buyCustomErrorMessage = "Amount to buy cannot be negative.";
+                return;
+            }
+
+            SelectedProduct = SelectedProduct with { ExistingAmount = SelectedProduct.ExistingAmount + CustomAmountToBuy };
+
+            var resp = await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{SelectedProduct.ProductId}",
+            SelectedProduct);
+            if (resp.IsSuccessStatusCode)
+            {
+                await LoadProducts();
+                SelectedProduct = null;
+                buyCustomErrorMessage = "Product purchased successfully.";
+            }
+        }
+        finally
+        {
+            isBuying = false;
+            await jsRuntime.CloseDialog(BuyCustomDialog);
+        }
+    }
+
+    private async Task buyOne()
+    {
+        if (SelectedProduct is null)
+            return;
+
+        isBuying = true;
+        try
+        {
+            SelectedProduct = SelectedProduct with { ExistingAmount = SelectedProduct.ExistingAmount + 1 };
+
+            var resp = await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{SelectedProduct.ProductId}",
+            SelectedProduct);
+            if (resp.IsSuccessStatusCode)
+            {
+                await LoadProducts();
+                SelectedProduct = null;
             }
         }
         finally
@@ -185,14 +272,7 @@ else
             var toBuy = products.Where(p => selectedProductIds.Contains(p.ProductId)).ToList();
             foreach (var product in toBuy)
             {
-                var updated = new InventoryProductDto
-                {
-                    ProductId = product.ProductId,
-                    ProductName = product.ProductName,
-                    ProductPrice = product.ProductPrice,
-                    ExistingAmount = product.DesiredAmount,
-                    DesiredAmount = product.DesiredAmount
-                };
+                var updated = product with { ExistingAmount = product.DesiredAmount };
                 await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{product.ProductId}", updated);
             }
             await LoadProducts();
