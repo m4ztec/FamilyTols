@@ -66,7 +66,7 @@ else
             @($"{(product.DesiredAmount - product.ExistingAmount) * product.ProductPrice:0.00} €")
         </TemplateColumn>
         <TemplateColumn Title="Actions" Context="product">
-            <button class="btn btn-sm btn-success" @onclick="() => buyOne()">Buy one</button>
+            <button class="btn btn-sm btn-success" @onclick="() => BuyOne(product)">Buy one</button>
             <button class="btn btn-sm btn-success" @onclick="() => BuyAll(product)">Buy All</button>
             <button class="btn btn-sm btn-success" @onclick="() => ShowBuyCustomDialog(product)">Buy Custom</button>
         </TemplateColumn>
@@ -238,18 +238,17 @@ else
         }
     }
 
-    private async Task buyOne()
+    private async Task BuyOne(InventoryProductDto product)
     {
-        if (SelectedProduct is null)
+        if (product is null)
             return;
 
         isBuying = true;
         try
         {
-            SelectedProduct = SelectedProduct with { ExistingAmount = SelectedProduct.ExistingAmount + 1 };
+            product = product with { ExistingAmount = product.ExistingAmount + 1 };
 
-            var resp = await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{SelectedProduct.ProductId}",
-            SelectedProduct);
+            var resp = await http.PutAsJsonAsync($"/api/Inventory/{inventoryId}/products/{product.ProductId}", product);
             if (resp.IsSuccessStatusCode)
             {
                 await LoadProducts();
