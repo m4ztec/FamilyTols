@@ -4,11 +4,28 @@
 @using HomeInventory.shared.Models
 @inject HttpClient http
 @inject NavigationManager Navigation
+@inject IJSRuntime jsRuntime
 @attribute [Authorize]
 
 <PageTitle>My Shopping List</PageTitle>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
+<dialog @ref="BuyCustomDialog">
+    <h4>Buy Custom</h4>
+    <div class="mb-3">
+        <label for="customAmount" class="form-label">Amount to Buy for @SelectedItem?.ProductName</label>
+        <InputNumber id="customAmount" class="form-control" min="0" step="0.01" @bind-Value="CustomAmountToBuy" />
+    </div>
+    @if (!string.IsNullOrEmpty(buyCustomErrorMessage))
+    {
+        <div class="alert alert-danger">@buyCustomErrorMessage</div>
+    }
+    <div class="d-flex">
+        <button class="btn btn-danger me-2" @onclick="BuyCustomAmount">Buy</button>
+        <button class="btn btn-secondary" @onclick="() => jsRuntime.CloseDialog(BuyCustomDialog)">Cancel</button>
+    </div>
+</dialog>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
     <h3>My Shopping List</h3>
     <button class="btn btn-secondary" @onclick="BackToHome">Back to Inventories</button>
 </div>
@@ -47,25 +64,26 @@ else
                     else
                     {
                         <QuickGrid Class="table" Items="inventoryGroup.Products.AsQueryable()">
-                            <PropertyColumn Property="product => product.ProductName" />
+                            <PropertyColumn Property="product => product.ProductName" Title="Product" />
                             <PropertyColumn Property="product => product.ProductPrice" Title="Price" Format="0.00€" />
                             <PropertyColumn Property="product => product.ExistingAmount" Title="Current" />
                             <PropertyColumn Property="product => product.DesiredAmount" Title="Needed" />
-                            <TemplateColumn Title="To Buy">
+                            <TemplateColumn Title="To Buy" Context="product">
                                 @{
-                                    var toBuy = Math.Max(0, context.DesiredAmount - context.ExistingAmount);
+                                    var toBuy = Math.Max(0, product.DesiredAmount - product.ExistingAmount);
                                 }
                                 <span class="badge @(toBuy > 0 ? "bg-danger" : "bg-success")">
                                     @toBuy
                                 </span>
                             </TemplateColumn>
-                            <TemplateColumn Title="Actions">
-                                <button class="btn btn-sm btn-success" @onclick="() => BuyOne(context)" disabled="@(context.ExistingAmount >= context.DesiredAmount)">
+                            <TemplateColumn Title="Actions" Context="product">
+                                <button class="btn btn-sm btn-success" @onclick="() => BuyOne(product)" disabled="@(product.ExistingAmount >= product.DesiredAmount)">
                                     Buy 1
                                 </button>
-                                <button class="btn btn-sm btn-primary ms-1" @onclick="() => BuyAll(context)" disabled="@(context.ExistingAmount >= context.DesiredAmount)">
+                                <button class="btn btn-sm btn-primary ms-1" @onclick="() => BuyAll(product)" disabled="@(product.ExistingAmount >= product.DesiredAmount)">
                                     Buy All
                                 </button>
+                                <button class="btn btn-sm btn-info ms-1" @onclick="() => ShowBuyCustomDialog(product)">Buy Custom</button>
                             </TemplateColumn>
                         </QuickGrid>
                         <div class="mt-3">
@@ -236,6 +254,72 @@ else
         catch (Exception ex)
         {
             Console.WriteLine($"[ShoppingList] Error buying all: {ex.Message}");
+        }
+    }
+
+    private bool isBuying = false;
+    private ElementReference BuyCustomDialog;
+    private string? buyCustomErrorMessage;
+    private ShoppingListItem? SelectedItem;
+    private double CustomAmountToBuy;
+
+    private async Task ShowBuyCustomDialog(ShoppingListItem item)
+    {
+        buyCustomErrorMessage = null;
+        CustomAmountToBuy = 0.0;
+        SelectedItem = new ShoppingListItem
+        {
+            ProductId = item.ProductId,
+            ProductName = item.ProductName,
+            ProductPrice = item.ProductPrice,
+            ExistingAmount = item.ExistingAmount,
+            DesiredAmount = item.DesiredAmount,
+            Units = item.Units,
+            InventoryId = item.InventoryId,
+            InventoryName = item.InventoryName
+        };
+        await jsRuntime.OpenDialog(BuyCustomDialog);
+    }
+
+    private async Task BuyCustomAmount()
+    {
+        if (SelectedItem is null)
+            return;
+
+        isBuying = true;
+        try
+        {
+            if (CustomAmountToBuy < 0)
+            {
+                buyCustomErrorMessage = "Amount to buy cannot be negative.";
+                return;
+            }
+
+            var updated = new InventoryProductDto
+            {
+                ProductId = SelectedItem.ProductId,
+                ProductName = SelectedItem.ProductName,
+                ProductPrice = SelectedItem.ProductPrice,
+                ExistingAmount = SelectedItem.ExistingAmount + CustomAmountToBuy,
+                DesiredAmount = SelectedItem.DesiredAmount,
+                Units = SelectedItem.Units
+            };
+
+            var resp = await http.PutAsJsonAsync($"/api/inventory/{SelectedItem.InventoryId}/products/{SelectedItem.ProductId}", updated);
+            if (resp.IsSuccessStatusCode)
+            {
+                // refresh the shopping list
+                await OnInitializedAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ShoppingList] Error buying custom: {ex.Message}");
+        }
+        finally
+        {
+            isBuying = false;
+            await jsRuntime.CloseDialog(BuyCustomDialog);
         }
     }
 

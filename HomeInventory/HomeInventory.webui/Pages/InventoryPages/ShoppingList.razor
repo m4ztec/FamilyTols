@@ -7,11 +7,10 @@
 @attribute [Authorize]
 
 <div class="d-flex align-items-center justify-content-between mb-3">
-    <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
         <button class="btn btn-secondary btn-sm" @onclick="BackToProducts">Back to Products</button>
         <h3 class="mb-0">Shopping List</h3>
     </div>
-
     <div class="mb-3 d-flex gap-2 align-items-start justify-content-end">
         <button class="btn btn-success" @onclick="BuySelected" disabled="@(selectedProductIds.Count == 0 || isBuying)">
             @if (isBuying)
@@ -42,42 +41,49 @@ else if (products?.Any() != true)
 }
 else
 {
-    <QuickGrid Class="table" Items="products">
-        <TemplateColumn Title="" Context="context">
-            <HeaderTemplate>
-                <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAllHeader"
-                    checked="@IsAllSelected" />
-            </HeaderTemplate>
-            <ChildContent Context="context">
-                <input type="checkbox" @onchange="(e) => ToggleSelection(e, context)"
-                    checked="@selectedProductIds.Contains(context.ProductId)" />
-            </ChildContent>
-        </TemplateColumn>
-        <PropertyColumn Property="product => product.ProductName" Title="Product" />
-        <TemplateColumn Title="Price" Context="product">
-            @($"{product.ProductPrice:0.00} €")
-        </TemplateColumn>
-        <PropertyColumn Property="product => product.ExistingAmount" Title="Current Stock" />
-        <PropertyColumn Property="product => product.DesiredAmount" Title="Desired Stock" />
-        <TemplateColumn Title="Need to Buy" Context="product">
-            @(product.DesiredAmount - product.ExistingAmount)
-        </TemplateColumn>
-        <TemplateColumn Title="Total Cost" Context="product">
-            @($"{(product.DesiredAmount - product.ExistingAmount) * product.ProductPrice:0.00} €")
-        </TemplateColumn>
-        <TemplateColumn Title="Actions" Context="product">
-            <button class="btn btn-sm btn-success" @onclick="() => BuyOne(product)">Buy one</button>
-            <button class="btn btn-sm btn-success" @onclick="() => BuyAll(product)">Buy All</button>
-            <button class="btn btn-sm btn-success" @onclick="() => ShowBuyCustomDialog(product)">Buy Custom</button>
-        </TemplateColumn>
-    </QuickGrid>
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">@inventoryName</h5>
+        </div>
+        <div class="card-body">
+            <QuickGrid Class="table" Items="products">
+                <TemplateColumn Title="" Context="context">
+                    <HeaderTemplate>
+                        <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAllHeader"
+                            checked="@IsAllSelected" />
+                    </HeaderTemplate>
+                    <ChildContent Context="context">
+                        <input type="checkbox" @onchange="(e) => ToggleSelection(e, context)"
+                            checked="@selectedProductIds.Contains(context.ProductId)" />
+                    </ChildContent>
+                </TemplateColumn>
+                <PropertyColumn Property="product => product.ProductName" Title="Product" />
+                <PropertyColumn Property="product => product.ProductPrice" Title="Price" Format="0.00€" />
+                <PropertyColumn Property="product => product.ExistingAmount" Title="Current" />
+                <PropertyColumn Property="product => product.DesiredAmount" Title="Needed" />
+                <TemplateColumn Title="To Buy">
+                    @{
+                        var toBuy = Math.Max(0, context.DesiredAmount - context.ExistingAmount);
+                    }
+                    <span class="badge @(toBuy > 0 ? "bg-danger" : "bg-success")">
+                        @toBuy
+                    </span>
+                </TemplateColumn>
+                <TemplateColumn Title="Actions" Context="product">
+                    <button class="btn btn-sm btn-success" @onclick="() => BuyOne(product)" disabled="@(product.ExistingAmount >= product.DesiredAmount)">Buy 1</button>
+                    <button class="btn btn-sm btn-primary ms-1" @onclick="() => BuyAll(product)" disabled="@(product.ExistingAmount >= product.DesiredAmount)">Buy All</button>
+                    <button class="btn btn-sm btn-info ms-1" @onclick="() => ShowBuyCustomDialog(product)">Buy Custom</button>
+                </TemplateColumn>
+            </QuickGrid>
 
-    <div class="mt-3">
-        <strong>Total Shopping Cost: </strong>
-        @{
-            var totalCost = products.Sum(p => (p.DesiredAmount - p.ExistingAmount) * p.ProductPrice);
-        }
-        @($"{totalCost:0.00} €")
+            <div class="mt-3">
+                <strong>Total items to buy:</strong> 
+                @{
+                    var totalToBuy = products.Sum(p => Math.Max(0, p.DesiredAmount - p.ExistingAmount));
+                }
+                <span class="badge bg-warning">@totalToBuy</span>
+            </div>
+        </div>
     </div>
 
     <dialog @ref="BuyCustomDialog">
@@ -102,6 +108,7 @@ else
     public required string inventoryId { get; set; }
 
     private IQueryable<InventoryProductDto>? products;
+    private string inventoryName = "";
     private bool isLoading = true;
     private bool isBuying = false;
     private HashSet<Guid> selectedProductIds = new();
@@ -116,6 +123,14 @@ else
         isLoading = true;
         try
         {
+            // fetch inventory name for display parity with global shopping list
+            try
+            {
+                var inv = await http.GetFromJsonAsync<Inventory>($"/api/Inventory/{inventoryId}");
+                inventoryName = inv?.Name ?? "";
+            }
+            catch { }
+
             // Get all products for the inventory
             var allProducts = await
             http.GetFromJsonAsync<IEnumerable<InventoryProductDto>>($"/api/Inventory/{inventoryId}/Products");

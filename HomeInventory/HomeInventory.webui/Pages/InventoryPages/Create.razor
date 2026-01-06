@@ -45,7 +45,7 @@
             Description = tmpDesc,
             Owner = userId,
         };
-        var hi = await http.PostAsJsonAsync("/api/Inventory/", inv);
+        var hi = await http.PostAsJsonAsync("/api/inventory/", inv);
         Navigation.NavigateTo("/inventory");
     }
 }
