@@ -365,7 +365,10 @@
         selectedProduct.ProductName = name;
         var p = availableProducts?.FirstOrDefault(x => x.Name == name);
         if (p is not null)
+        {
             selectedProduct.ProductPrice = p.SupposedPrice;
+            selectedProduct.Units = p.Unit;
+        }
 
         await Task.CompletedTask;
     }
@@ -395,6 +398,7 @@
             {
                 selectedProduct.ProductName = newProduct.Name;
                 selectedProduct.ProductPrice = newProduct.SupposedPrice;
+                selectedProduct.Units = newProduct.Unit;
             }
 
             await jsRuntime.CloseDialog(newProductDialog);
