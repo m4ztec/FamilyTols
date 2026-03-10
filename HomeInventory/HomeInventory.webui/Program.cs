@@ -14,21 +14,21 @@ var baseAddress = builder.HostEnvironment.BaseAddress;
 // In development, use configured API endpoint from environment; otherwise use same origin
 var apiAddress = builder.Configuration["ApiAddress"] ?? baseAddress;
 
-// Load Keycloak settings from configuration (environment variables)
-var keycloakAuthority = builder.Configuration["Keycloak:Authority"]
-    ?? throw new InvalidOperationException("Connection string 'Keycloak:Authority' not found."); ;
-var keycloakClientId = builder.Configuration["Keycloak:ClientId"]
-    ?? throw new InvalidOperationException("Connection string 'Keycloak:ClientId' not found.");
-var keycloakScope = builder.Configuration["Keycloak:Scope"]
-    ?? throw new InvalidOperationException("Connection string 'Keycloak:Scope' not found.");
+// Load auth settings from configuration (environment variables)
+var authAuthority = builder.Configuration["Auth:Authority"]
+    ?? throw new InvalidOperationException("Connection string 'Auth:Authority' not found."); ;
+var authClientId = builder.Configuration["Auth:ClientId"]
+    ?? throw new InvalidOperationException("Connection string 'Auth:ClientId' not found.");
+var apiAuthScope = builder.Configuration["Auth:ApiScope"]
+    ?? throw new InvalidOperationException("Connection string 'Auth:ApiScope' not found.");
 
 // Add OIDC Authentication
 builder.Services.AddOidcAuthentication(options =>
 {
-    options.ProviderOptions.Authority = keycloakAuthority;
-    options.ProviderOptions.ClientId = keycloakClientId;
+    options.ProviderOptions.Authority = authAuthority;
+    options.ProviderOptions.ClientId = authClientId;
     options.ProviderOptions.ResponseType = "code";
-    options.ProviderOptions.DefaultScopes.Add(keycloakScope);
+    options.ProviderOptions.DefaultScopes.Add(apiAuthScope);
 });
 
 // Add HTTP client with authorization - use OIDC authentication handler
@@ -43,8 +43,8 @@ builder.Services.AddHttpClient("ExternalApi", client =>
 
     var handler = new AuthorizationMessageHandler(tokenProvider, navigationManager);
     handler.ConfigureHandler(
-        authorizedUrls: new[] { apiAddress },
-        scopes: new[] { keycloakScope }
+        authorizedUrls: [apiAddress],
+        scopes: [apiAuthScope]
     );
     return handler;
 });

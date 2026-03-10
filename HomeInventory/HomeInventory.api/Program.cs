@@ -7,11 +7,11 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var keycloakSection = builder.Configuration.GetSection("Keycloak");
-var keycloakAuthority = keycloakSection["Authority"] ?? string.Empty;
-var keycloakAudience = keycloakSection["Audience"] ?? string.Empty;
+var authSection = builder.Configuration.GetSection("Auth");
+var authAuthority = authSection["Authority"] ?? string.Empty;
+var authAudience = authSection["Audience"] ?? string.Empty;
 var requireHttps = true;
-if (bool.TryParse(keycloakSection["RequireHttpsMetadata"], out var parsed))
+if (bool.TryParse(authSection["RequireHttpsMetadata"], out var parsed))
     requireHttps = parsed;
 
 builder.Services.AddAuthentication(options =>
@@ -20,8 +20,8 @@ builder.Services.AddAuthentication(options =>
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(options =>
 {
-    options.Authority = keycloakAuthority;
-    options.Audience = keycloakAudience;
+    options.Authority = authAuthority;
+    options.Audience = authAudience;
     options.RequireHttpsMetadata = requireHttps;    
     options.TokenValidationParameters = new()
     {

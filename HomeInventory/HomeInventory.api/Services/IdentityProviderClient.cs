@@ -11,7 +11,7 @@ public class IdentityProviderClient : IIdentityProviderClient
     public IdentityProviderClient(HttpClient http, IConfiguration config, IHttpContextAccessor httpContextAccessor)
     {
         _http = http;
-        _userInfoEndpoint = config["Keycloak:userinfo"];
+        _userInfoEndpoint = config["Auth:userinfo"];
         _httpContextAccessor = httpContextAccessor;
     }
 
