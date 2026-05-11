@@ -1,0 +1,156 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<div class="auth-status">
+    <AuthorizeView>
+        <Authorized>
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span>Welcome, @context.User.Identity?.Name</span>
+                </div>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person-x me-2"></i>
+                    <span class="text-muted">Not signed in</span>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" @onclick="TrySignIn">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>
+                    Sign In
+                </button>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private void TrySignIn()
+    {
+        // Navigate to trigger authentication
+        Navigation.NavigateTo("authentication/login", forceLoad: true);
+    }
+}
+
+<style>
+.auth-status {
+    padding: 0.5rem;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.align-items-center {
+    align-items: center;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.me-1 {
+    margin-right: 0.25rem;
+}
+
+.me-2 {
+    margin-right: 0.5rem;
+}
+
+.ms-2 {
+    margin-left: 0.5rem;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.2rem;
+}
+
+.btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-primary:hover {
+    color: #fff;
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.text-muted {
+    color: #6c757d;
+}
+
+.text-warning {
+    color: #664d03;
+}
+
+.small {
+    font-size: 0.875em;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.35em 0.65em;
+    font-size: 0.75em;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.bg-success {
+    background-color: #198754;
+}
+
+.bg-warning {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.bg-secondary {
+    background-color: #6c757d;
+}
+
+.alert-success {
+    color: #0f5132;
+    background-color: #d1edff;
+    border-color: #a6e5ff;
+}
+
+.alert-warning {
+    color: #664d03;
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+}
+
+.bi {
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    fill: currentcolor;
+}
+</style>

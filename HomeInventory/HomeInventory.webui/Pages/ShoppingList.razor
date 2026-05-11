@@ -257,7 +257,6 @@ else
         }
     }
 
-    private bool isBuying = false;
     private ElementReference BuyCustomDialog;
     private string? buyCustomErrorMessage;
     private ShoppingListItem? SelectedItem;
@@ -286,7 +285,6 @@ else
         if (SelectedItem is null)
             return;
 
-        isBuying = true;
         try
         {
             if (CustomAmountToBuy < 0)
@@ -318,7 +316,6 @@ else
         }
         finally
         {
-            isBuying = false;
             await jsRuntime.CloseDialog(BuyCustomDialog);
         }
     }

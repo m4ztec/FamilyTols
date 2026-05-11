@@ -1,77 +1,32 @@
 ﻿using HomeInventory.api;
 using HomeInventory.api.Dbcontext;
-using HomeInventory.api.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var authSection = builder.Configuration.GetSection("Auth");
-var authAuthority = authSection["Authority"] ?? string.Empty;
-var authAudience = authSection["Audience"] ?? string.Empty;
-var requireHttps = true;
-if (bool.TryParse(authSection["RequireHttpsMetadata"], out var parsed))
-    requireHttps = parsed;
+builder.Services.AddDbContext<HomeInventoryapiContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("HomeInventoryapiContext")
+        ?? throw new InvalidOperationException("Connection string 'HomeInventoryapiContext' not found."))
+        .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
-builder.Services.AddAuthentication(options =>
+builder.Services.AddDefaultIdentity<IdentityUser>(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
-{
-    options.Authority = authAuthority;
-    options.Audience = authAudience;
-    options.RequireHttpsMetadata = requireHttps;    
-    options.TokenValidationParameters = new()
-    {
-        ValidateAudience = false,
-        ValidateIssuer = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidateTokenReplay = false,
-        ClockSkew = TimeSpan.FromMinutes(1), // Allow 1 minute clock skew
-    };
-    
-    options.SaveToken = true;
-    
-    // Add event handler for debugging
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
-        {
-            Console.WriteLine($"[AUTH FAILED] Exception: {context.Exception?.Message}");
-            Console.WriteLine($"[AUTH FAILED] InnerException: {context.Exception?.InnerException?.Message}");
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            var claims = context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}");
-            Console.WriteLine($"[TOKEN VALIDATED] User: {context.Principal?.Identity?.Name}");
-            Console.WriteLine($"[TOKEN VALIDATED] Claims: {string.Join(", ", claims ?? [])}");
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            Console.WriteLine($"[CHALLENGE] Error: {context.Error}");
-            Console.WriteLine($"[CHALLENGE] Description: {context.ErrorDescription}");
-            return Task.CompletedTask;
-        }
-    };
-});
+    options.SignIn.RequireConfirmedAccount = false;
+})
+.AddEntityFrameworkStores<HomeInventoryapiContext>();
+
+builder.Services.AddIdentityServer()
+    .AddApiAuthorization<IdentityUser, HomeInventoryapiContext>();
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddDbContext<HomeInventoryapiContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("HomeInventoryapiContext")
-        ?? throw new InvalidOperationException("Connection string 'HomeInventoryapiContext' not found.")));
-
 builder.Services.AddCors();
+builder.Services.AddRazorPages();
 
 builder.Services.AddEndpointsApiExplorer();
 
-// Register identity provider client (optional configuration via IdentityProvider section)
-builder.Services.AddHttpClient<IIdentityProviderClient, IdentityProviderClient>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddOpenApi();
@@ -117,6 +72,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+app.UseIdentityServer();
 app.UseAuthorization();
 
 app.MapInventoryEndpoints();

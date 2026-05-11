@@ -37,7 +37,7 @@ A full-stack web application for managing household inventories collaboratively 
 - .NET (ASP.NET Core + Blazor)
 - Entity Framework Core
 - SQL Server
-- Keycloak (Authentication/Authorization)
+- ASP.NET Core Identity + IdentityServer (Official Microsoft package)
 - Docker & Docker Compose
 - Scalar for API documentation
 
@@ -55,7 +55,7 @@ A full-stack web application for managing household inventories collaboratively 
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
 │        HomeInventory.webui (Blazor WebAssembly)              │
-│  - OIDC Authentication (Keycloak)                            │
+│  - OIDC Authentication (ASP.NET Core Identity + IdentityServer) │
 │  - Interactive UI Components                                 │
 │  - Real-time Data Binding                                    │
 └─────────────────────────────────────────────────────────────┘
@@ -91,11 +91,11 @@ A full-stack web application for managing household inventories collaboratively 
 
 ### Authentication Flow
 
-1. User logs in via Keycloak OIDC integration
+1. User logs in via local ASP.NET Core Identity by default
 2. Frontend receives ID token and access token
 3. Access token sent with API requests as Bearer token
-4. API validates token with Keycloak authority
-5. Claims are extracted and used for authorization
+4. API validates token with the local IdentityServer authority by default
+5. External OAuth providers remain available as a configurable fallback
 
 ---
 
@@ -107,8 +107,8 @@ A full-stack web application for managing household inventories collaboratively 
 - **Node.js**: 18+ (for build tools)
 - **Docker & Docker Compose**: For containerized development
 - **SQL Server** (or compatible database)
-- **Keycloak**: For authentication (can run locally via Docker)
 - **Git**: For version control
+- **Optional**: Keycloak or another OAuth provider if you want an external auth fallback
 
 ### For Production
 

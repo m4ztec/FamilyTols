@@ -1,9 +1,13 @@
-﻿using HomeInventory.shared.Models;
+﻿using Duende.IdentityServer.EntityFramework.Options;
+using HomeInventory.shared.Models;
+using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace HomeInventory.api.Dbcontext
 {
-    public class HomeInventoryapiContext(DbContextOptions<HomeInventoryapiContext> options) : DbContext(options)
+    public class HomeInventoryapiContext(DbContextOptions<HomeInventoryapiContext> options, IOptions<OperationalStoreOptions> operationalStoreOptions) : ApiAuthorizationDbContext<IdentityUser>(options, operationalStoreOptions)
     {
         public DbSet<Inventory> Inventory { get; set; } = default!;
         public DbSet<InventoryMembers> InventoryMembers { get; set; } = default!;
@@ -12,6 +16,8 @@ namespace HomeInventory.api.Dbcontext
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
             modelBuilder
                 .Entity<Product>()
                 .Property(x => x.Unit)
